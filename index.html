@@ -4293,7 +4293,19 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
 #scene:focus-visible { box-shadow: inset 0 0 0 3px rgba(246, 240, 228, .45); }
 #scene.is-dragging { cursor: grabbing; }
 #scene.can-grab-pen { cursor: grab; }
-#scene.can-open-book { cursor: pointer; }
+#scene.can-catch, #scene.can-open-book { cursor: pointer; }
+
+#arcadeFace {
+  position: fixed; left: var(--safe-left); top: var(--safe-top); z-index: 8;
+  display: block; width: 36px; height: 36px; padding: 4px; line-height: 0;
+  opacity: .84; touch-action: manipulation;
+}
+#arcadeFace svg {
+  display: block; width: 100%; height: 100%;
+  filter: drop-shadow(0 0 1.5px #fff) drop-shadow(1px 2px 1.5px #0006);
+}
+#arcadeFace:active svg { transform: scale(.88); }
+#arcadeFace:focus-visible { outline: 2px solid rgba(246, 240, 228, .85); outline-offset: 3px; }
 
 .scene-actions {
   position: fixed; inset: auto var(--safe-right) var(--safe-bottom) var(--safe-left);
@@ -4504,8 +4516,10 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
   </head>
   <body>
     <main id="app" aria-label="사유의 방 3D 전시">
-      <p id="sceneHelp" class="sr-only">보이는 볼펜을 직접 잡아 맨홀 속을 휘저으면 모기가 날아오릅니다. 날아오른 모기는 볼펜으로 쳐서 잡습니다. 키보드에서는 스페이스바로 맨홀을 휘젓고, M 키로 가장 가까운 모기를 잡고, D 키로 다이어리를 엽니다.</p>
+      <p id="sceneHelp" class="sr-only">보이는 볼펜을 직접 잡아 맨홀 속을 휘저으면 모기떼가 날아오릅니다. 날아오른 모기는 눌러서 잡습니다. 키보드에서는 스페이스바로 맨홀을 휘젓고, M 키로 가장 가까운 모기를 잡고, D 키로 다이어리를 엽니다.</p>
       <canvas id="scene" tabindex="0" aria-describedby="sceneHelp" aria-label="가운데 바닥에 뚜껑이 열린 맨홀과 커다란 볼펜이 놓인 전시장"></canvas>
+
+      <a id="arcadeFace" href="https://aaffffffffff123-lang.github.io/arcade/" target="_top" aria-label="혐규오락실 — 다른 게임 하러 가기" title="혐규오락실"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24.00 2.84 C27.19 2.93 30.48 3.49 33.44 4.70 C36.39 5.91 39.79 7.65 41.72 10.08 C43.64 12.51 44.41 16.18 44.97 19.28 C45.53 22.39 45.73 25.72 45.08 28.74 C44.42 31.76 43.07 35.11 41.06 37.40 C39.05 39.69 35.87 41.15 33.03 42.47 C30.19 43.79 27.09 45.14 24.00 45.31 C20.91 45.47 17.40 44.72 14.49 43.46 C11.58 42.19 8.30 40.21 6.54 37.72 C4.78 35.22 4.45 31.57 3.93 28.51 C3.41 25.45 2.76 22.23 3.42 19.37 C4.08 16.52 6.10 13.90 7.91 11.36 C9.72 8.82 11.61 5.56 14.29 4.14 C16.97 2.72 20.81 2.75 24.00 2.84 Z" fill="#221D1F"/><g stroke="#EFF1EC" stroke-width="2.2" stroke-linecap="round" fill="none"><path d="M13.2 8.4V17.9"/><path d="M20.4 6.2V16.6"/><path d="M27.6 6.2V16.6"/><path d="M34.6 8.8V18.3"/></g><g fill="#EFF1EC"><ellipse cx="18.1" cy="25.2" rx="2" ry="2.3"/><ellipse cx="29.9" cy="25.2" rx="2" ry="2.3"/></g><path d="M19.9 32.3a4.6 4.6 0 0 0 8.2 0" fill="none" stroke="#EFF1EC" stroke-width="2.3" stroke-linecap="round"/></svg></a>
 
       <p id="hint" class="hint" role="status">볼펜을 끌어 맨홀 속을 휘저으세요</p>
 
@@ -4562,6 +4576,7 @@ const {
 
 /* ───────────────────────── DOM ───────────────────────── */
 const canvas = document.querySelector('#scene');
+const arcadeFace = document.querySelector('#arcadeFace');
 const hintEl = document.querySelector('#hint');
 const diaryButton = document.querySelector('#diaryButton');
 const soundButton = document.querySelector('#soundButton');
@@ -4599,7 +4614,8 @@ const PEN_RIM_LIFT = 0.42;// 쇠테를 넘을 때 들어올리는 높이
 const TOUCH_LIFT_PX = 34; // 손가락이 볼펜 끝을 가리지 않도록 터치 지점보다 위에 끝을 둠
 
 const MOSQUITO_POOL = 36;
-const MOSQUITO_MAX = 16;
+const MOSQUITO_MAX = 32;
+const MOSQUITO_MAX_MOBILE = 28;
 const LARVA_COUNT = 26;
 const PER_PAGE = 8;       // 다이어리 한 장에 붙는 최대 마리 수 (같은 날짜 안에서)
 
@@ -4665,10 +4681,10 @@ const state = {
   pointerType: 'mouse',
   pointerStartX: 0, pointerStartY: 0,
   penDragging: false,
-  tapBook: false,
+  tapMosquito: null, tapBook: false,
   bookHovered: false, bookPulseUntil: 0,
   pending: null,
-  tapeDragging: false, tapePointerId: null,
+  tapeDragging: false, tapePointerId: null, tapeStartX: 0, tapeStartY: 0,
   diaryIndex: 0,
   finishReadyAt: 0,
   hasStirred: false,
@@ -4752,9 +4768,11 @@ class SoundKit {
   setPopulation(n, immediate = false) {
     this.population = n;
     if (!this.initialized) return;
-    const target = n === 0 ? 0.0001 : Math.min(0.12, 0.024 + Math.sqrt(n) * 0.022);
+    const target = n === 0 ? 0.0001 : Math.min(0.16, 0.024 + Math.sqrt(n) * 0.022);
     const t = this.ctx.currentTime;
     this.buzzGain.gain.cancelScheduledValues(t);
+    this.buzzFilter.frequency.cancelScheduledValues(t);
+    this.buzzFilter.frequency.setTargetAtTime(700 + Math.min(n, 32) * 5, t, 0.25);
     if (immediate) this.buzzGain.gain.setValueAtTime(target, t);
     else this.buzzGain.gain.setTargetAtTime(target, t, n ? 0.3 : 0.6);
   }
@@ -5336,6 +5354,7 @@ const mosquitoWing = new MeshStandardMaterial({ color: 0xdfe3d8, transparent: tr
 const mosquitoLeg = new LineBasicMaterial({ color: 0x151512, transparent: true, opacity: 0.86 });
 const hitMaterial = new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
 const mosquitoes = [];
+const hitSpheres = [];
 const flight = { minX: -5.5, maxX: 5.5, minY: 0.75, maxY: 4.0, minZ: -4.4, maxZ: 3.0 };
 
 function buildMosquito(index) {
@@ -5370,23 +5389,39 @@ function buildMosquito(index) {
   }
   const legs = new LineSegments(new BufferGeometry().setFromPoints(pts), mosquitoLeg);
   g.add(legs);
+  const hit = new Mesh(new SphereGeometry(0.34, 8, 6), hitMaterial);
+  hit.userData.mosquitoIndex = index; g.add(hit); hitSpheres.push(hit);
   g.visible = false;
   g.userData = {
-    index, seed: 0, active: false, dying: false, deathAge: 0, age: 0, phase: Math.random() * Math.PI * 2,
+    index, seed: 0, active: false, dying: false, deathAge: 0, deathStartedAt: 0, age: 0, phase: Math.random() * Math.PI * 2,
     velocity: new Vector3(), wanderTarget: new Vector3(), retargetAt: 0, leftWing, rightWing, emergeT: 0,
+    returning: false, returnT: 0, returnStartedAt: 0, returnDuration: 1.5, returnFrom: new Vector3(), returnTarget: new Vector3(),
+    baseScale: 1, outbreakUntil: 0, nearBias: false,
   };
   scene.add(g); mosquitoes.push(g);
 }
 for (let i = 0; i < MOSQUITO_POOL; i += 1) buildMosquito(i);
 
 function activeMosquitoes() { return mosquitoes.filter((m) => m.userData.active); }
-function updateBuzz() { sound.setPopulation(activeMosquitoes().length); }
+function updateBuzz() {
+  const audible = state.mode === 'room' || state.mode === 'keyboard-stir';
+  sound.setPopulation(audible ? activeMosquitoes().length : 0);
+}
 
 function pickWanderTarget(m, now = performance.now()) {
   const cand = new Vector3(), best = new Vector3();
+  const compact = now < m.userData.outbreakUntil;
+  const minX = compact ? flight.minX * 0.68 : flight.minX;
+  const maxX = compact ? flight.maxX * 0.68 : flight.maxX;
+  const minZ = compact ? Math.max(flight.minZ, -2.4) : flight.minZ;
+  const maxZ = compact ? Math.min(flight.maxZ, 2.8) : flight.maxZ;
   let bestScore = -1;
   for (let i = 0; i < 10; i += 1) {
-    cand.set(rand(flight.minX, flight.maxX), rand(flight.minY, flight.maxY), rand(flight.minZ, flight.maxZ));
+    cand.set(
+      rand(minX, maxX),
+      rand(compact ? 0.85 : flight.minY, compact ? 3.5 : flight.maxY),
+      compact && m.userData.nearBias ? rand(Math.max(1.2, minZ), maxZ) : rand(minZ, maxZ),
+    );
     let nearest = Infinity;
     for (const o of mosquitoes) if (o !== m && o.userData.active) nearest = Math.min(nearest, cand.distanceToSquared(o.userData.wanderTarget));
     if (nearest > bestScore) { bestScore = nearest; best.copy(cand); }
@@ -5395,26 +5430,62 @@ function pickWanderTarget(m, now = performance.now()) {
   m.userData.wanderTarget.copy(best);
   m.userData.retargetAt = now + rand(2600, 6000);
 }
-function spawnMosquito(x, z, lift = 1) {
+function spawnMosquito(x, z, lift = 1, { quiet = false, outbreak = false } = {}) {
   const m = mosquitoes.find((o) => !o.userData.active && !o.userData.dying);
   if (!m) return null;
   const u = m.userData;
   const a = Math.random() * Math.PI * 2;
   m.position.set(x, WATER_Y + 0.02, z);
-  u.velocity.set(Math.cos(a) * rand(0.5, 1.1), rand(1.3, 1.9) * lift, Math.sin(a) * rand(0.5, 1.1));
+  const outward = outbreak ? rand(1.25, 2.35) : rand(0.5, 1.1);
+  u.velocity.set(
+    Math.cos(a) * outward,
+    rand(outbreak ? 2.6 : 1.3, outbreak ? 3.8 : 1.9) * lift,
+    Math.sin(a) * outward,
+  );
   u.phase = Math.random() * Math.PI * 2; u.age = 0; u.dying = false; u.deathAge = 0; u.emergeT = 0;
+  u.returning = false; u.returnT = 0; u.outbreakUntil = outbreak ? performance.now() + 6000 : 0;
+  u.nearBias = outbreak && Math.random() < 0.28;
   u.seed = Math.floor(Math.random() * 2147483647); u.active = true;
-  m.visible = true; m.scale.setScalar(rand(1.0, 1.35));
-  pickWanderTarget(m); updateBuzz();
+  u.baseScale = outbreak ? rand(1.08, u.nearBias ? 1.58 : 1.42) : rand(1.0, 1.35);
+  m.visible = true; m.scale.setScalar(u.baseScale); m.rotation.set(0, 0, 0);
+  pickWanderTarget(m);
+  if (!quiet) updateBuzz();
   spawnRipple(x, z, 0.8);
-  sound.emerge();
-  if (navigator.vibrate) navigator.vibrate(8);
+  if (!quiet) {
+    sound.emerge();
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
   return m;
 }
 function killMosquito(m) {
   if (!m?.userData.active) return;
-  m.userData.active = false; m.userData.dying = true; m.userData.deathAge = 0;
+  m.userData.active = false; m.userData.dying = true; m.userData.returning = false;
+  m.userData.deathAge = 0; m.userData.deathStartedAt = performance.now();
   updateBuzz();
+}
+function beginMosquitoReturn(m) {
+  const u = m?.userData;
+  if (!u?.active || u.returning) return false;
+  const a = Math.random() * Math.PI * 2, r = rand(0.08, 0.42);
+  u.returning = true; u.returnT = 0; u.returnStartedAt = performance.now(); u.returnDuration = rand(1.15, 1.75);
+  u.returnFrom.copy(m.position);
+  u.returnTarget.set(Math.cos(a) * r, WATER_Y - 0.08, Math.sin(a) * r);
+  return true;
+}
+function cancelMosquitoReturns() {
+  let cancelled = false;
+  for (const m of mosquitoes) {
+    const u = m.userData;
+    if (!u.active || !u.returning) continue;
+    u.returning = false; u.returnT = 0;
+    m.scale.setScalar(u.baseScale);
+    m.position.y = Math.max(m.position.y, WATER_Y + 0.12);
+    u.velocity.set(rand(-0.7, 0.7), rand(1.4, 2.0), rand(-0.7, 0.7));
+    u.outbreakUntil = performance.now() + 5000; u.nearBias = Math.random() < 0.28;
+    pickWanderTarget(m);
+    cancelled = true;
+  }
+  return cancelled;
 }
 function updateMosquitoes(dt, time, now) {
   const slow = reducedMotion ? 0.3 : 1;
@@ -5422,7 +5493,7 @@ function updateMosquitoes(dt, time, now) {
   for (const m of mosquitoes) {
     const u = m.userData;
     if (u.dying) {
-      u.deathAge += dt;
+      u.deathAge = (now - u.deathStartedAt) / 1000;
       const t = clamp(u.deathAge / 0.26, 0, 1);
       m.position.y -= dt * 0.9;
       m.rotation.z += dt * 6;
@@ -5431,6 +5502,22 @@ function updateMosquitoes(dt, time, now) {
       continue;
     }
     if (!u.active) continue;
+    if (u.returning) {
+      u.returnT = Math.min(1, (now - u.returnStartedAt) / (u.returnDuration * 1000));
+      const t = u.returnT, e = t * t * (3 - 2 * t);
+      m.position.lerpVectors(u.returnFrom, u.returnTarget, e);
+      m.position.y += Math.sin(t * Math.PI) * 0.16;
+      m.scale.setScalar(u.baseScale * (1 - e * 0.58));
+      m.lookAt(u.returnTarget);
+      const flap = Math.sin(time * 86 + u.phase) * 0.6;
+      u.leftWing.rotation.z = 0.26 + flap; u.rightWing.rotation.z = -0.26 - flap;
+      if (t >= 1) {
+        u.active = false; u.returning = false; m.visible = false;
+        spawnRipple(u.returnTarget.x, u.returnTarget.z, 0.28);
+        updateBuzz();
+      }
+      continue;
+    }
     u.age += dt;
     u.emergeT = Math.min(1, u.emergeT + dt * 1.6);
     const w = time * 2.1 * slow + u.phase;
@@ -5439,7 +5526,8 @@ function updateMosquitoes(dt, time, now) {
     tmpA.x += Math.sin(w * 0.83 + u.index) * 0.36;
     tmpA.y += Math.sin(w * 1.27 + u.index * 0.71) * 0.22;
     tmpA.z += Math.cos(w * 0.67 + u.index * 1.13) * 0.34;
-    tmpB.copy(tmpA).sub(m.position).multiplyScalar(0.5 * dt * slow);
+    const outbreakFlight = now < u.outbreakUntil;
+    tmpB.copy(tmpA).sub(m.position).multiplyScalar((outbreakFlight ? 1.05 : 0.5) * dt * slow);
     u.velocity.add(tmpB);
     u.velocity.x += Math.sin(w * 4.4) * 0.07 * dt;
     u.velocity.y += Math.cos(w * 5.1) * 0.06 * dt;
@@ -5454,8 +5542,8 @@ function updateMosquitoes(dt, time, now) {
       tmpC.addScaledVector(tmpA, (0.9 - d) / d);
     }
     u.velocity.addScaledVector(tmpC, 0.82 * dt * slow);
-    u.velocity.multiplyScalar(Math.pow(0.965, dt * 60));
-    u.velocity.clampLength(0.2, 1.5);
+    u.velocity.multiplyScalar(Math.pow(outbreakFlight ? 0.978 : 0.965, dt * 60));
+    u.velocity.clampLength(0.2, outbreakFlight ? 3.1 : 1.5);
     // 화면 밖으로 못 나가게
     if (m.position.x < flight.minX) u.velocity.x += dt * 2; else if (m.position.x > flight.maxX) u.velocity.x -= dt * 2;
     if (m.position.z < flight.minZ) u.velocity.z += dt * 2; else if (m.position.z > flight.maxZ) u.velocity.z -= dt * 2;
@@ -5466,19 +5554,35 @@ function updateMosquitoes(dt, time, now) {
     u.leftWing.rotation.z = 0.26 + flap; u.rightWing.rotation.z = -0.26 - flap;
   }
 }
+function mosquitoAtPointer(clientX, clientY, pointerType = 'mouse') {
+  setNdc(clientX, clientY);
+  raycaster.setFromCamera(ndc, camera);
+  for (const hit of raycaster.intersectObjects(hitSpheres, false)) {
+    const m = mosquitoes[hit.object.userData.mosquitoIndex];
+    if (m?.userData.active) return m;
+  }
+  let best = null, bestD = pointerType === 'touch' ? 48 : 28;
+  for (const m of mosquitoes) {
+    if (!m.userData.active) continue;
+    tmpA.copy(m.position).project(camera);
+    const sx = (tmpA.x + 1) * 0.5 * window.innerWidth;
+    const sy = (1 - tmpA.y) * 0.5 * window.innerHeight;
+    const d = Math.hypot(sx - clientX, sy - clientY);
+    if (d < bestD) { bestD = d; best = m; }
+  }
+  return best;
+}
 
 /* ───────────────────────── 볼펜 (MINAMI) ───────────────────────── */
 let penHit;
 const pen = {
   group: new Group(), body: new Group(),
   tip: new Vector3(), vel: new Vector3(), dir: new Vector3(0, 1, 0), target: new Vector3(),
-  prevTip: new Vector3(), prevDir: new Vector3(0, 1, 0),
   held: false, inWater: false, wet: 0, wetLine: 0, dripAccumulator: 0,
   restTip: new Vector3(1.25, PEN_HOVER_Y, 1.75), restDir: new Vector3(0.72, 0.17, 0.67).normalize(),
   heldDir: new Vector3(0.14, 1, 0.18).normalize(),
   returnUntil: 0, returnTarget: new Vector3(),
   control: new Vector3(), controlPrev: new Vector3(), controlVel: new Vector3(), controlSpeed: 0,
-  swatReadyAt: Infinity,
   wetSleeves: [],
 };
 function makeLogoTexture() {
@@ -5543,7 +5647,6 @@ function buildPen() {
 }
 buildPen();
 pen.tip.copy(pen.restTip); pen.dir.copy(pen.restDir);
-pen.prevTip.copy(pen.tip); pen.prevDir.copy(pen.dir);
 
 function placePen() {
   pen.group.position.copy(pen.tip);
@@ -5557,53 +5660,6 @@ function penAtPointer(clientX, clientY) {
   setNdc(clientX, clientY);
   raycaster.setFromCamera(ndc, camera);
   return !!penHit && raycaster.intersectObject(penHit, false).length > 0;
-}
-
-const swatWorld = new Vector3();
-const swatPrev = Array.from({ length: 7 }, () => new Vector2());
-const swatNow = Array.from({ length: 7 }, () => new Vector2());
-const swatMosquito = new Vector2();
-function projectToScreen(point, out) {
-  swatWorld.copy(point).project(camera);
-  out.set((swatWorld.x + 1) * 0.5 * window.innerWidth, (1 - swatWorld.y) * 0.5 * window.innerHeight);
-  return out;
-}
-function pointSegmentDistance(point, a, b) {
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const lengthSq = dx * dx + dy * dy;
-  if (lengthSq < 0.001) return point.distanceTo(a);
-  const t = clamp(((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSq, 0, 1);
-  return Math.hypot(point.x - (a.x + dx * t), point.y - (a.y + dy * t));
-}
-function checkPenSwat(tipInWater, now) {
-  const clearOfMouth = Math.hypot(pen.control.x, pen.control.z) > MANHOLE_R + 0.18;
-  const hasTarget = mosquitoes.some((mosquito) => mosquito.userData.active);
-  if (state.mode !== 'room' || !state.penDragging || pen.inWater || tipInWater || !clearOfMouth || !hasTarget) {
-    pen.swatReadyAt = Infinity;
-    return;
-  }
-  if (!Number.isFinite(pen.swatReadyAt)) { pen.swatReadyAt = now + 180; return; }
-  if (now < pen.swatReadyAt || pen.controlSpeed < 0.85) return;
-  for (let i = 0; i < swatNow.length; i += 1) {
-    const length = 0.12 + i * 0.65;
-    projectToScreen(swatWorld.copy(pen.prevDir).multiplyScalar(length).add(pen.prevTip), swatPrev[i]);
-    projectToScreen(swatWorld.copy(pen.dir).multiplyScalar(length).add(pen.tip), swatNow[i]);
-  }
-  const threshold = state.pointerType === 'touch' ? 34 : 27;
-  let nearest = null, nearestDistance = threshold;
-  for (const mosquito of mosquitoes) {
-    if (!mosquito.userData.active) continue;
-    projectToScreen(mosquito.position, swatMosquito);
-    let distance = Math.min(
-      pointSegmentDistance(swatMosquito, swatPrev[0], swatPrev[swatPrev.length - 1]),
-      pointSegmentDistance(swatMosquito, swatNow[0], swatNow[swatNow.length - 1]),
-    );
-    for (let i = 0; i < swatNow.length && distance > 0; i += 1) {
-      distance = Math.min(distance, pointSegmentDistance(swatMosquito, swatPrev[i], swatNow[i]));
-    }
-    if (distance < nearestDistance) { nearestDistance = distance; nearest = mosquito; }
-  }
-  if (nearest) catchMosquito(nearest);
 }
 
 /* 볼펜 끝이 어디로 가야 하는지 (수면/바닥/쇠테 넘기) */
@@ -5624,7 +5680,6 @@ function penTargetFromControl(target) {
   return target;
 }
 function updatePen(dt, now) {
-  pen.prevTip.copy(pen.tip); pen.prevDir.copy(pen.dir);
   const held = pen.held;
   // 놓은 직후 구멍 안에 있으면 먼저 위로 뽑아 올린 뒤 제자리로
   const returning = !held && now < pen.returnUntil && Math.hypot(pen.tip.x, pen.tip.z) < MANHOLE_R + 0.4;
@@ -5839,11 +5894,47 @@ function showHint(text, ms = 3600) {
 function hideHint() { clearTimeout(showHint.timeout); hintEl.classList.add('is-hidden'); }
 
 /* ───────────────────────── 휘젓기 / 모기 나오기 ───────────────────────── */
-const stir = { agitation: 0, swirl: 0, spawnMeter: 0, pending: [], lastSpawnAt: 0, waterLevel: 0, rippleAcc: 0 };
+const stir = {
+  agitation: 0, swirl: 0, pending: [], lastSpawnAt: 0, waterLevel: 0, rippleAcc: 0,
+  idleTime: 0, idleStartedAt: 0, burstCharge: 0, burstLocked: false, keepCount: 4,
+  nextReturnAt: 0, soundWave: -1, phase: 'dormant',
+};
+function outbreakLimit() { return window.innerWidth < 720 ? MOSQUITO_MAX_MOBILE : MOSQUITO_MAX; }
+function queueOutbreak(now) {
+  const missing = Math.max(0, outbreakLimit() - activeMosquitoes().length - stir.pending.length);
+  if (missing < 1) return false;
+  stir.keepCount = 3 + Math.floor(Math.random() * 2);
+  stir.phase = 'outbreak'; stir.burstLocked = true; stir.burstCharge = 0; stir.idleTime = 0; stir.idleStartedAt = 0;
+  stir.nextReturnAt = 0; stir.soundWave = -1;
+  if (!state.hasStirred) { state.hasStirred = true; hideHint(); }
+
+  // 남아 있던 몇 마리도 새 떼와 한 덩어리로 몰리게 한다.
+  for (const m of activeMosquitoes()) {
+    m.userData.outbreakUntil = now + 6000;
+    m.userData.nearBias = Math.random() < 0.28;
+    pickWanderTarget(m, now);
+  }
+  for (let i = 0; i < missing; i += 1) {
+    const wave = Math.min(2, Math.floor(i * 3 / missing));
+    const a = Math.random() * Math.PI * 2, rr = rand(0.08, 0.92);
+    stir.pending.push({
+      x: Math.cos(a) * rr, z: Math.sin(a) * rr, wave, outbreak: true,
+      at: now + 300 + wave * 300 + rand(0, 145),
+    });
+  }
+  for (let i = 0; i < Math.min(18, missing); i += 1) {
+    const a = Math.random() * Math.PI * 2, rr = rand(0.08, 0.88);
+    spawnBubble(Math.cos(a) * rr, Math.sin(a) * rr, Math.floor(i / 6) * 280 + rand(0, 170));
+  }
+  sound.glug();
+  if (navigator.vibrate) navigator.vibrate([14, 34, 14, 62, 20]);
+  return true;
+}
 function stirWater(dt, now) {
   // 볼펜 끝 속도(수면 기준)로 흔들림을 쌓고, 원을 그리면 소용돌이가 생긴다
   const speed = pen.controlSpeed;
   const cp = pen.control;
+  const disturbing = pen.held && pen.inWater && pen.tipWasInWater && speed > 0.55;
   if (pen.held && pen.inWater && pen.tipWasInWater) {
     stir.agitation = Math.min(1.5, stir.agitation + speed * dt * 1.4);
     const r2 = cp.x * cp.x + cp.z * cp.z + 0.12;
@@ -5855,51 +5946,65 @@ function stirWater(dt, now) {
       if (stir.rippleAcc > 0.22) { stir.rippleAcc = 0; spawnRipple(cp.x, cp.z, clamp(speed * 0.5, 0.4, 1.2)); }
     }
     if (speed > 1.6 && Math.random() < dt * speed * 0.8) spawnBubble(cp.x + rand(-0.3, 0.3), cp.z + rand(-0.3, 0.3));
-    stir.spawnMeter += (stir.agitation * 0.36 + speed * 0.08) * dt;
   } else {
     stir.swirl *= Math.exp(-dt * 0.9);
-    stir.spawnMeter += stir.agitation * 0.3 * dt;
+  }
+  if (disturbing) {
+    stir.idleTime = 0; stir.idleStartedAt = 0;
+    if (cancelMosquitoReturns()) updateBuzz();
+    stir.burstCharge += speed * dt;
+    if (!stir.burstLocked && stir.burstCharge >= 0.55) queueOutbreak(now);
+  } else if (state.mode === 'room') {
+    if (!stir.idleStartedAt) stir.idleStartedAt = now;
+    stir.idleTime = (now - stir.idleStartedAt) / 1000;
+    if (stir.idleTime >= 1.25) { stir.burstLocked = false; stir.burstCharge = 0; }
+  } else {
+    stir.idleTime = 0; stir.idleStartedAt = 0;
   }
   stir.agitation *= Math.exp(-dt / 4.2);
   waterUniforms.swirl.value = stir.swirl;
   waterUniforms.swirlAngle.value += stir.swirl * dt;
   waterUniforms.agitation.value = stir.agitation;
   // 소리
-  const level = clamp((pen.held && pen.inWater ? speed * 0.18 : 0) + stir.agitation * 0.045, 0, 1);
+  const level = clamp((pen.held && pen.inWater ? speed * 0.1 : 0) + stir.agitation * 0.025, 0, 0.72);
   stir.waterLevel = damp(stir.waterLevel, level, 8, dt);
   sound.setWater(stir.waterLevel);
-  // 모기 나오기: 거품이 먼저 올라오고 잠시 뒤 수면을 뚫고 나온다
-  const active = activeMosquitoes().length;
-  const canEmerge = state.mode === 'room' || state.mode === 'keyboard-stir';
-  if (canEmerge && stir.spawnMeter >= 1 && active + stir.pending.length < MOSQUITO_MAX && stir.pending.length < 3) {
-    stir.spawnMeter -= 1;
-    const near = pen.held && pen.inWater;
-    const a = Math.random() * Math.PI * 2, rr = rand(0.15, 0.85);
-    const x = near ? clamp(cp.x + rand(-0.45, 0.45), -0.95, 0.95) : Math.cos(a) * rr;
-    const z = near ? clamp(cp.z + rand(-0.45, 0.45), -0.95, 0.95) : Math.sin(a) * rr;
-    queueEmergence(x, z, now);
-  }
-  if (stir.spawnMeter > 1.5) stir.spawnMeter = 1.5;
+  // 벌집을 건드린 듯 세 번에 나뉘어 한꺼번에 솟는다.
+  let spawned = 0, newestWave = -1;
   for (let i = stir.pending.length - 1; i >= 0; i -= 1) {
     const p = stir.pending[i];
     if (now >= p.at) {
       stir.pending.splice(i, 1);
       consumeLarvaNear(p.x, p.z, now);
-      spawnMosquito(p.x, p.z, 1);
+      if (spawnMosquito(p.x, p.z, rand(1.15, 1.55), { quiet: true, outbreak: !!p.outbreak })) spawned += 1;
+      newestWave = Math.max(newestWave, p.wave ?? 0);
       stir.lastSpawnAt = now;
-      if (!state.shownCatchHint) { state.shownCatchHint = true; showHint('날아오른 모기를 볼펜으로 쳐서 잡으세요', 5200); }
+      if (!state.shownCatchHint) { state.shownCatchHint = true; showHint('날아오른 모기를 눌러 잡으세요', 5200); }
     }
   }
-}
-function queueEmergence(x, z, now) {
-  if (!state.hasStirred) {
-    state.hasStirred = true;
-    hideHint();
+  if (spawned) {
+    updateBuzz();
+    if (newestWave > stir.soundWave) {
+      stir.soundWave = newestWave;
+      if (state.mode === 'room' || state.mode === 'keyboard-stir') sound.emerge();
+    }
   }
-  const n = 3 + Math.floor(Math.random() * 3);
-  for (let i = 0; i < n; i += 1) spawnBubble(x, z, i * 120 + rand(0, 80));
-  sound.glug();
-  stir.pending.push({ x, z, at: now + 620 + n * 90 });
+
+  // 손을 떼고 두면 순서대로 구멍으로 되돌아가 3~4마리만 남는다.
+  if (state.mode === 'room' && stir.idleTime >= 6.5 && stir.pending.length === 0) {
+    const flying = activeMosquitoes().filter((m) => !m.userData.returning);
+    if (!stir.nextReturnAt) stir.nextReturnAt = now;
+    while (flying.length > stir.keepCount && now >= stir.nextReturnAt) {
+      const index = Math.floor(Math.random() * flying.length);
+      beginMosquitoReturn(flying[index]);
+      flying.splice(index, 1);
+      stir.nextReturnAt += rand(55, 85);
+      stir.phase = 'settling';
+    }
+    if (flying.length <= stir.keepCount && !activeMosquitoes().some((m) => m.userData.returning)) {
+      stir.phase = 'primed';
+    }
+  }
 }
 
 /* ───────────────────────── 캔버스 포인터 ───────────────────────── */
@@ -5909,14 +6014,12 @@ function beginPenDrag(e) {
   if (!info) return false;
   pen.inWater = info.inWater; pen.held = true;
   pen.controlPrev.copy(pen.control); pen.controlVel.set(0, 0, 0); pen.controlSpeed = 0;
-  pen.swatReadyAt = Infinity;
   state.penDragging = true;
   canvas.classList.add('is-dragging');
   return true;
 }
 function endPenDrag() {
   pen.held = false; state.penDragging = false; pen.controlSpeed = 0; pen.controlVel.set(0, 0, 0);
-  pen.swatReadyAt = Infinity;
   pen.returnUntil = performance.now() + 340;
   pen.returnTarget.set(pen.tip.x, 0.6, pen.tip.z);
   canvas.classList.remove('is-dragging');
@@ -5924,6 +6027,7 @@ function endPenDrag() {
 function clearActivePointer() {
   const pointerId = state.pointerId;
   if (state.penDragging) endPenDrag();
+  state.tapMosquito = null;
   state.tapBook = false;
   state.pointerId = null;
   if (pointerId !== null && canvas.hasPointerCapture?.(pointerId)) canvas.releasePointerCapture(pointerId);
@@ -5931,13 +6035,14 @@ function clearActivePointer() {
 function onCanvasPointerDown(e) {
   if (state.mode !== 'room' || state.pointerId !== null || !e.isPrimary) return;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
-  const wantsBook = bookAtPointer(e.clientX, e.clientY);
-  const wantsPen = !wantsBook && penAtPointer(e.clientX, e.clientY);
-  if (!wantsBook && !wantsPen) return;
+  const wantsMosquito = mosquitoAtPointer(e.clientX, e.clientY, e.pointerType);
+  const wantsBook = !wantsMosquito && bookAtPointer(e.clientX, e.clientY);
+  const wantsPen = !wantsMosquito && !wantsBook && penAtPointer(e.clientX, e.clientY);
+  if (!wantsMosquito && !wantsBook && !wantsPen) return;
   sound.ensure();
   state.pointerId = e.pointerId; state.pointerType = e.pointerType;
   state.pointerStartX = e.clientX; state.pointerStartY = e.clientY;
-  state.tapBook = wantsBook;
+  state.tapMosquito = wantsMosquito; state.tapBook = wantsBook;
   if (wantsPen && !beginPenDrag(e)) {
     state.pointerId = null;
     return;
@@ -5951,15 +6056,17 @@ function onCanvasPointerMove(e) {
     pen.inWater = info.inWater;
     return;
   }
-  if (e.pointerId === state.pointerId && state.tapBook) {
+  if (e.pointerId === state.pointerId && (state.tapMosquito || state.tapBook)) {
     const moved = Math.hypot(e.clientX - state.pointerStartX, e.clientY - state.pointerStartY);
-    if (moved > 18) state.tapBook = false;
+    if (moved > 18) { state.tapMosquito = null; state.tapBook = false; }
     return;
   }
   if (e.pointerType === 'mouse' && state.mode === 'room' && state.pointerId === null) {
-    const b = bookAtPointer(e.clientX, e.clientY);
-    const p = !b && penAtPointer(e.clientX, e.clientY);
+    const m = mosquitoAtPointer(e.clientX, e.clientY, 'mouse');
+    const b = !m && bookAtPointer(e.clientX, e.clientY);
+    const p = !m && !b && penAtPointer(e.clientX, e.clientY);
     state.bookHovered = b;
+    canvas.classList.toggle('can-catch', !!m);
     canvas.classList.toggle('can-grab-pen', p);
     canvas.classList.toggle('can-open-book', b);
   }
@@ -5967,9 +6074,11 @@ function onCanvasPointerMove(e) {
 function onCanvasPointerUp(e) {
   if (e.pointerId !== state.pointerId) return;
   const moved = Math.hypot(e.clientX - state.pointerStartX, e.clientY - state.pointerStartY);
+  const tappedMosquito = moved < 18 ? state.tapMosquito : null;
   const shouldOpenBook = state.tapBook && moved < 16;
   clearActivePointer();
-  if (shouldOpenBook) openDiary();
+  if (tappedMosquito) catchMosquito(tappedMosquito);
+  else if (shouldOpenBook) openDiary();
 }
 function onCanvasPointerCancel(e) {
   if (e.pointerId !== state.pointerId) return;
@@ -5982,7 +6091,7 @@ canvas.addEventListener('pointercancel', onCanvasPointerCancel);
 canvas.addEventListener('lostpointercapture', (e) => { if (e.pointerId === state.pointerId) onCanvasPointerCancel(e); });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('pointerleave', () => {
-  if (!state.penDragging) { state.bookHovered = false; canvas.classList.remove('can-grab-pen', 'can-open-book'); }
+  if (!state.penDragging) { state.bookHovered = false; canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book'); }
 });
 
 /* 키보드: 스페이스로 한 바퀴 휘젓기 */
@@ -6138,11 +6247,13 @@ function turnPage(dir) {
 }
 
 /* ───────────────────────── 잡기 → 붙이기 ───────────────────────── */
-function setSceneInert(on) { canvas.inert = on; sceneActions.inert = on; }
+function setSceneInert(on) { canvas.inert = on; sceneActions.inert = on; arcadeFace.inert = on; }
 function catchMosquito(m) {
   if (!m?.userData.active || state.mode !== 'room') return;
   const seed = m.userData.seed;
   killMosquito(m);
+  // 표본 화면으로 넘어간 사이 대기 중인 파동이 한 프레임에 몰려 나오지 않게 멈춘다.
+  stir.pending.length = 0;
   sound.catchHit();
   if (navigator.vibrate) navigator.vibrate(14);
   if (state.pointerId !== null) clearActivePointer();
@@ -6150,7 +6261,7 @@ function catchMosquito(m) {
   state.mode = 'capture';
   setSceneInert(true);
   stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
-  canvas.classList.remove('can-grab-pen', 'can-open-book');
+  canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book');
   setTimeout(() => {
     if (state.mode !== 'capture') return;
     state.mode = 'mount-transition';
@@ -6193,11 +6304,12 @@ function placePending(clientX, clientY) {
   tapeRoll.focus({ preventScroll: true });
 }
 mountPage.addEventListener('pointerdown', (e) => {
+  if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
   if (state.mode === 'mount-finished') {
     if (performance.now() >= state.finishReadyAt) finishMount();
     return;
   }
-  if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0) || e.target.closest('#tapeRoll')) return;
+  if (e.target.closest('#tapeRoll')) return;
   placePending(e.clientX, e.clientY);
 });
 mountPage.addEventListener('keydown', (e) => {
@@ -6278,22 +6390,38 @@ function dropTape(clientX, clientY) {
   if (tapePointerId !== null && tapeRoll.hasPointerCapture?.(tapePointerId)) tapeRoll.releasePointerCapture(tapePointerId);
   dragTape.classList.remove('is-dragging');
   const r = mountPage.getBoundingClientRect();
+  const roll = tapeRoll.getBoundingClientRect();
   const tx = state.pending.x * r.width, ty = state.pending.y * r.height;
   const px = clientX - r.left, py = clientY - r.top;
-  const tolerance = Math.max(96, Math.min(r.width, r.height) * 0.17);
-  if (Math.hypot(px - tx, py - ty) <= tolerance) applyTape();
+  if (Math.hypot(clientX - state.tapeStartX, clientY - state.tapeStartY) < 16) {
+    mountHint.textContent = '테이프를 모기 위까지 끌어오세요';
+    return;
+  }
+  const ox = roll.left + roll.width / 2 - r.left, oy = roll.top + roll.height / 2 - r.top;
+  const dx = px - ox, dy = py - oy, lengthSq = dx * dx + dy * dy;
+  const rawT = lengthSq < 0.001 ? -1 : ((tx - ox) * dx + (ty - oy) * dy) / lengthSq;
+  const t = clamp(rawT, 0, 1);
+  const lineDistance = Math.hypot(tx - (ox + dx * t), ty - (oy + dy * t));
+  const endpointTolerance = Math.max(120, Math.min(r.width, r.height) * 0.2);
+  const draggedTowardSpecimen = rawT > 0.05;
+  if (draggedTowardSpecimen && (Math.hypot(px - tx, py - ty) <= endpointTolerance || lineDistance <= 52)) applyTape();
   else mountHint.textContent = '테이프를 모기 위까지 끌어오세요';
 }
 tapeRoll.addEventListener('pointerdown', (e) => {
   if (state.mode !== 'taping' || state.tapeDragging || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
   e.stopPropagation(); sound.ensure();
   state.tapeDragging = true; state.tapePointerId = e.pointerId;
+  state.tapeStartX = e.clientX; state.tapeStartY = e.clientY;
   tapeRoll.setPointerCapture?.(e.pointerId); tapeRoll.classList.remove('is-nudging');
   dragTape.classList.add('is-dragging');
-  updateDragTape(e.clientX, liftedY(e));
+  updateDragTape(e.clientX, e.clientY);
 });
-tapeRoll.addEventListener('pointermove', (e) => { if (e.pointerId === state.tapePointerId) updateDragTape(e.clientX, liftedY(e)); });
-tapeRoll.addEventListener('pointerup', (e) => { if (e.pointerId === state.tapePointerId) dropTape(e.clientX, liftedY(e)); });
+tapeRoll.addEventListener('pointermove', (e) => { if (e.pointerId === state.tapePointerId) updateDragTape(e.clientX, e.clientY); });
+tapeRoll.addEventListener('pointerup', (e) => {
+  if (e.pointerId !== state.tapePointerId) return;
+  updateDragTape(e.clientX, e.clientY);
+  dropTape(e.clientX, e.clientY);
+});
 tapeRoll.addEventListener('pointercancel', (e) => {
   if (e.pointerId !== state.tapePointerId) return;
   state.tapeDragging = false; state.tapePointerId = null; dragTape.classList.remove('is-dragging');
@@ -6364,6 +6492,7 @@ function frame() {
   lastFrame = now; elapsed += dt;
 
   if (sceneCovered()) {
+    stir.idleTime = 0; stir.idleStartedAt = 0;
     requestAnimationFrame(frame);
     return;
   }
@@ -6379,7 +6508,6 @@ function frame() {
   waterUniforms.time.value = elapsed;
   waterUniforms.pulse.value = Math.max(0, waterUniforms.pulse.value - dt * 0.85);
   const tipInWater = updatePen(dt, now);
-  checkPenSwat(tipInWater, now);
   stirWater(dt, now);
   updateLarvae(dt, now, tipInWater && pen.held, tipInWater ? pen.control : null);
   updateMosquitoes(dt, elapsed, now);
