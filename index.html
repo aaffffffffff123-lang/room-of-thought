@@ -4571,7 +4571,7 @@ const {
   BufferGeometry, Shape, Path, ShapeGeometry, BoxGeometry, CylinderGeometry, SphereGeometry,
   TorusGeometry, RingGeometry, PlaneGeometry, CircleGeometry, CanvasTexture, HemisphereLight,
   SpotLight, Fog, SRGBColorSpace, ACESFilmicToneMapping, PCFShadowMap, RepeatWrapping,
-  DoubleSide, BackSide, DynamicDrawUsage, MathUtils,
+  DoubleSide, BackSide, DynamicDrawUsage, MathUtils, Quaternion, Euler,
 } = window.THREE;
 
 /* ───────────────────────── DOM ───────────────────────── */
@@ -4696,9 +4696,10 @@ const state = {
 class SoundKit {
   constructor() {
     this.ctx = null; this.master = null; this.initialized = false;
-    this.population = 0; this.buzzLayers = []; this.buzzNoiseGain = null; this.buzzBus = null; this.buzzLimiter = null;
+    this.population = 0; this.voices = []; this.swarm = null; this.buzzBus = null; this.buzzLimiter = null;
     this.waterGain = null; this.waterFilter = null;
-    this.lastBubble = 0; this.lastSplash = 0;
+    this.lastBubble = 0; this.lastSplash = 0; this.lastVoiceUpdate = 0;
+    this.vA = new Vector3(); this.vB = new Vector3();
   }
   ensure() {
     if (settings.muted) return;
@@ -4713,28 +4714,39 @@ class SoundKit {
     this.master.gain.value = 0.5;
     this.master.connect(ctx.destination);
 
-    // 모기 수가 늘면 실제로 서로 다른 날갯소리가 하나씩 겹친다.
     this.buzzBus = ctx.createGain(); this.buzzBus.gain.value = 0.9;
     this.buzzLimiter = ctx.createDynamicsCompressor();
-    this.buzzLimiter.threshold.value = -16; this.buzzLimiter.knee.value = 12;
-    this.buzzLimiter.ratio.value = 6; this.buzzLimiter.attack.value = 0.004; this.buzzLimiter.release.value = 0.18;
+    this.buzzLimiter.threshold.value = -14; this.buzzLimiter.knee.value = 10;
+    this.buzzLimiter.ratio.value = 7; this.buzzLimiter.attack.value = 0.003; this.buzzLimiter.release.value = 0.16;
     this.buzzBus.connect(this.buzzLimiter).connect(this.master);
-    const buzzFrequencies = [598, 617, 641, 668, 697, 729, 766, 807, 852, 901];
-    const buzzPans = [-0.38, 0.32, -0.12, 0.47, -0.48, 0.16, 0.39, -0.27, 0.06, -0.4];
-    for (let i = 0; i < buzzFrequencies.length; i += 1) {
-      const baseFreq = buzzFrequencies[i];
-      const osc = ctx.createOscillator(); osc.type = i % 3 === 1 ? 'sawtooth' : 'triangle'; osc.frequency.value = baseFreq;
-      const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.value = baseFreq * 1.04; filter.Q.value = 2.4;
+
+    // 가까운 모기 여덟 마리는 한 마리씩 따로 운다: 날갯짓 톱니파 + 한 옥타브 위 보조음, 코맹맹이 대역 강조.
+    // 음높이·세기·좌우는 매 프레임 그 모기의 위치와 속도를 따라간다(updateVoices).
+    for (let i = 0; i < 8; i += 1) {
+      const osc = ctx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 540;
+      const osc2 = ctx.createOscillator(); osc2.type = 'triangle'; osc2.frequency.value = 1083;
+      const mix = ctx.createGain(); mix.gain.value = 1;
+      const g2 = ctx.createGain(); g2.gain.value = 0.42;
+      const low = ctx.createBiquadFilter(); low.type = 'lowpass'; low.frequency.value = 3600; low.Q.value = 0.7;
+      const nasal = ctx.createBiquadFilter(); nasal.type = 'bandpass'; nasal.frequency.value = 1700 + i * 60; nasal.Q.value = 1.3;
+      const nasalGain = ctx.createGain(); nasalGain.gain.value = 0.9;
       const gain = ctx.createGain(); gain.gain.value = 0.0001;
       const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
-      if (pan.pan) pan.pan.value = buzzPans[i];
-      const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
-      lfo.frequency.value = 5.8 + i * 0.37; lfoGain.gain.value = 12 + i * 1.8;
-      lfo.connect(lfoGain).connect(osc.detune);
-      osc.connect(filter).connect(gain).connect(pan).connect(this.buzzBus);
-      osc.start(); lfo.start();
-      this.buzzLayers.push({ osc, filter, gain, pan, lfo, baseFreq });
+      // 음높이 흔들림(날갯짓이 고르지 않음)과 떨림
+      const wobble = ctx.createOscillator(); wobble.type = 'sine'; wobble.frequency.value = 4.2 + i * 0.47;
+      const wobbleGain = ctx.createGain(); wobbleGain.gain.value = 16;
+      wobble.connect(wobbleGain); wobbleGain.connect(osc.detune); wobbleGain.connect(osc2.detune);
+      const trem = ctx.createOscillator(); trem.type = 'sine'; trem.frequency.value = 9.5 + i * 0.63;
+      const tremGain = ctx.createGain(); tremGain.gain.value = 0.11;
+      trem.connect(tremGain).connect(mix.gain);
+      osc.connect(mix); osc2.connect(g2).connect(mix);
+      mix.connect(low).connect(gain);
+      mix.connect(nasal).connect(nasalGain).connect(gain);
+      gain.connect(pan).connect(this.buzzBus);
+      osc.start(); osc2.start(); wobble.start(); trem.start();
+      this.voices.push({ osc, osc2, gain, pan, mosquito: null, level: 0 });
     }
+    // 그 너머의 떼는 뭉뚱그린 웅웅거림으로: 잡음 띠 + 살짝 어긋난 드론 셋
     const buzzNoiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const buzzNoiseData = buzzNoiseBuffer.getChannelData(0);
     let buzzBrown = 0;
@@ -4744,11 +4756,26 @@ class SoundKit {
       buzzNoiseData[i] = white * 0.35 + buzzBrown * 0.65;
     }
     const buzzNoise = ctx.createBufferSource(); buzzNoise.buffer = buzzNoiseBuffer; buzzNoise.loop = true;
-    const buzzHigh = ctx.createBiquadFilter(); buzzHigh.type = 'highpass'; buzzHigh.frequency.value = 480;
-    const buzzBand = ctx.createBiquadFilter(); buzzBand.type = 'bandpass'; buzzBand.frequency.value = 1050; buzzBand.Q.value = 0.75;
-    this.buzzNoiseGain = ctx.createGain(); this.buzzNoiseGain.gain.value = 0.0001;
-    buzzNoise.connect(buzzHigh).connect(buzzBand).connect(this.buzzNoiseGain).connect(this.buzzBus);
+    const buzzHigh = ctx.createBiquadFilter(); buzzHigh.type = 'highpass'; buzzHigh.frequency.value = 520;
+    const buzzBand = ctx.createBiquadFilter(); buzzBand.type = 'bandpass'; buzzBand.frequency.value = 1200; buzzBand.Q.value = 0.8;
+    const noiseGain = ctx.createGain(); noiseGain.gain.value = 0.0001;
+    buzzNoise.connect(buzzHigh).connect(buzzBand).connect(noiseGain).connect(this.buzzBus);
     buzzNoise.start();
+    const drones = [];
+    for (const [freq, panValue] of [[522, -0.35], [577, 0.3], [641, -0.05]]) {
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = freq;
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2600;
+      const g = ctx.createGain(); g.gain.value = 0.0001;
+      const p = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
+      if (p.pan) p.pan.value = panValue;
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 0.9 + Math.random() * 0.8;
+      const lfoGain = ctx.createGain(); lfoGain.gain.value = 30;
+      lfo.connect(lfoGain).connect(o.detune);
+      o.connect(f).connect(g).connect(p).connect(this.buzzBus);
+      o.start(); lfo.start();
+      drones.push({ gain: g });
+    }
+    this.swarm = { noiseGain, drones };
 
     // 물 젓는 소리: 갈색 잡음을 로우패스로, 세기는 볼펜 끝 속도를 따라감
     const bufLen = ctx.sampleRate * 2;
@@ -4785,21 +4812,65 @@ class SoundKit {
     this.population = n;
     if (!this.initialized) return;
     const t = this.ctx.currentTime;
-    const thresholds = [1, 2, 4, 7, 12, 20, 32, 48, 68, 90];
-    const peaks = [0.024, 0.018, 0.018, 0.017, 0.017, 0.016, 0.016, 0.015, 0.015, 0.014];
     const glide = (param, value, tau) => {
       if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(t); else param.cancelScheduledValues(t);
       if (immediate) param.setValueAtTime(value, t); else param.setTargetAtTime(value, t, tau);
     };
-    this.buzzLayers.forEach((layer, i) => {
-      const threshold = thresholds[i];
-      const fill = i === 0 ? (n > 0 ? 1 : 0)
-        : n < threshold ? 0 : Math.min(1, 0.35 + (n - threshold) / Math.max(3, threshold * 0.65));
-      glide(layer.gain.gain, fill ? peaks[i] * fill : 0.0001, fill ? 0.2 : 0.62);
-      glide(layer.filter.frequency, layer.baseFreq * (1 + Math.min(n, 120) * 0.0007), 0.28);
-    });
-    const density = clamp((n - 8) / 72, 0, 1);
-    glide(this.buzzNoiseGain.gain, density ? 0.0001 + density * 0.026 : 0.0001, density ? 0.28 : 0.7);
+    // 여덟 마리를 넘는 만큼만 뒤쪽 웅웅거림이 커진다
+    const crowd = clamp((n - 8) / 70, 0, 1);
+    glide(this.swarm.noiseGain.gain, crowd ? 0.0001 + crowd * 0.028 : 0.0001, crowd ? 0.3 : 0.6);
+    this.swarm.drones.forEach((d, i) => glide(d.gain.gain, crowd ? 0.0001 + crowd * (0.011 - i * 0.002) : 0.0001, crowd ? 0.35 : 0.6));
+    if (n === 0) for (const v of this.voices) { v.mosquito = null; glide(v.gain.gain, 0.0001, 0.08); }
+  }
+  // 카메라(듣는 사람)에 가까운 순서로 모기를 목소리에 붙이고, 거리·속도·접근을 음량과 음높이에 싣는다.
+  updateVoices(list, listener, now) {
+    if (!this.initialized || settings.muted || this.ctx.state !== 'running' || this.population === 0) return;
+    if (now - this.lastVoiceUpdate < 30) return;
+    this.lastVoiceUpdate = now;
+    const t = this.ctx.currentTime;
+    const candidates = [];
+    for (const m of list) {
+      const u = m.userData;
+      if (!u.active || u.dying) continue;
+      candidates.push({ m, d: m.position.distanceTo(listener.position) });
+    }
+    candidates.sort((a, b) => a.d - b.d);
+    const keep = new Set();
+    for (let i = 0; i < Math.min(candidates.length, this.voices.length + 4); i += 1) keep.add(candidates[i].m);
+    for (const v of this.voices) if (v.mosquito && (!v.mosquito.userData.active || v.mosquito.userData.dying || !keep.has(v.mosquito))) v.mosquito = null;
+    const taken = new Set(this.voices.map((v) => v.mosquito).filter(Boolean));
+    let next = 0;
+    for (const v of this.voices) {
+      if (v.mosquito) continue;
+      while (next < candidates.length && taken.has(candidates[next].m)) next += 1;
+      if (next >= candidates.length) break;
+      v.mosquito = candidates[next].m; taken.add(v.mosquito); next += 1;
+    }
+    for (const v of this.voices) {
+      if (!v.mosquito) {
+        if (v.level !== 0) { v.level = 0; v.gain.gain.setTargetAtTime(0.0001, t, 0.09); }
+        continue;
+      }
+      const m = v.mosquito, u = m.userData;
+      const vA = this.vA.copy(listener.position).sub(m.position);
+      const d = Math.max(vA.length(), 1e-3);
+      vA.divideScalar(d);
+      const speed = u.velocity.length();
+      const approach = u.velocity.dot(vA);                        // 다가오면 양수
+      const base = 450 + (u.seed % 1000) * 0.19;                   // 마리마다 450~640Hz
+      let freq = base * (1 + 0.2 * clamp(speed / 5, 0, 1)) * clamp(1 + approach / 55, 0.9, 1.12);
+      if (u.mode === 'hover') freq *= 0.965;
+      const near = Math.min(1, Math.pow(1.7 / Math.max(d, 0.8), 1.6));
+      let level = 0.1 * near * (u.mode === 'hover' ? 0.8 : 1) * (0.85 + 0.15 * clamp(speed / 5, 0, 1));
+      if (u.vanishing) level *= 0.7;
+      const vB = this.vB.copy(m.position).project(listener);
+      const panValue = clamp(vB.x * 0.85, -1, 1);
+      v.level = level;
+      v.osc.frequency.setTargetAtTime(freq, t, 0.035);
+      v.osc2.frequency.setTargetAtTime(freq * 2.006, t, 0.035);
+      v.gain.gain.setTargetAtTime(Math.max(0.0001, level), t, 0.06);
+      if (v.pan.pan) v.pan.pan.setTargetAtTime(panValue, t, 0.05);
+    }
   }
   setWater(level) { // 0~1
     if (!this.initialized || settings.muted || this.ctx?.state === 'suspended') return;
@@ -5373,39 +5444,104 @@ function updateDrips(dt) {
 }
 
 /* ───────────────────────── 모기 ───────────────────────── */
-const mosquitoBody = new MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.46, metalness: 0.08 });
-const mosquitoNeedle = new MeshStandardMaterial({ color: 0x1c1c1a, roughness: 0.5, metalness: 0.04 });
-const mosquitoWing = new MeshStandardMaterial({ color: 0xdfe3d8, transparent: true, opacity: 0.42, roughness: 0.12, side: DoubleSide, depthWrite: false });
-mosquitoWing.forceSinglePass = true;
-const mosquitoLeg = new MeshStandardMaterial({ color: 0x151512, roughness: 0.58, metalness: 0.02 });
+// 흰줄숲모기 기준으로 그린다: 검은 몸, 등의 흰 줄, 배의 흰 띠, 희게 끝나는 긴 다리.
+// 좌표계: -z가 머리 쪽(진행 방향), +y가 등 쪽.
+const mosquitoBodyMat = new MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.06 });
+const mosquitoThinMat = new MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.03 });
+const mosquitoLegMat = new MeshStandardMaterial({ color: 0xffffff, roughness: 0.58, metalness: 0.02 });
+const mosquitoWingMat = new MeshStandardMaterial({ color: 0xdfe4dc, transparent: true, opacity: 0.62, roughness: 0.14, metalness: 0.12, side: DoubleSide, depthWrite: false });
+const mosquitoWingBlurMat = new MeshStandardMaterial({ color: 0xe9ede4, transparent: true, opacity: 0.2, roughness: 0.14, metalness: 0.12, side: DoubleSide, depthWrite: false });
+mosquitoWingMat.forceSinglePass = true; mosquitoWingBlurMat.forceSinglePass = true;
 const hitMaterial = new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
 const mosquitoes = [];
 const flight = { minX: -5.5, maxX: 5.5, minY: 0.75, maxY: 4.0, minZ: -4.4, maxZ: 3.0 };
 
-// 160마리를 각각 그리지 않고, 같은 부품끼리 네 번의 렌더 호출로 묶는다.
+const MQ_COLOR = { dark: 0x1a1714, pale: 0xe6dfcc, stripe: 0xf3eee2, eye: 0x332f2b, tarsus: 0xd8d1bd, vein: 0x5a5a52 };
+// 몸통 부품: 가슴(불룩한 등) → 등의 흰 줄 → 머리 → 눈 둘 → 배 8마디(홀수 마디가 흰 띠)
 const mosquitoBodyParts = [
-  { p: [0, 0, -0.02], s: [0.053, 0.048, 0.065], band: false },
-  ...Array.from({ length: 5 }, (_, i) => {
-    const k = 1 - i * 0.13;
-    return { p: [0, 0, 0.06 + i * 0.058], s: [0.039 * k, 0.033 * k, 0.045], band: i % 2 === 1 };
-  }),
-  { p: [0, 0, -0.1], s: [0.046, 0.046, 0.046], band: false },
-  { p: [-0.035, 0.012, -0.11], s: [0.018, 0.018, 0.018], band: true },
-  { p: [0.035, 0.012, -0.11], s: [0.018, 0.018, 0.018], band: true },
+  { p: [0, 0.016, -0.03], s: [0.032, 0.041, 0.056], color: MQ_COLOR.dark },
+  { p: [0, 0.054, -0.032], s: [0.005, 0.004, 0.038], color: MQ_COLOR.stripe },
+  { p: [0, -0.012, -0.098], s: [0.021, 0.021, 0.023], color: MQ_COLOR.dark },
+  { p: [-0.018, -0.006, -0.102], s: [0.0125, 0.0125, 0.0125], color: MQ_COLOR.eye },
+  { p: [0.018, -0.006, -0.102], s: [0.0125, 0.0125, 0.0125], color: MQ_COLOR.eye },
 ];
-const mosquitoLegParts = [];
-for (const side of [-1, 1]) for (let i = 0; i < 3; i += 1) {
-  const z = -0.06 + i * 0.06;
-  mosquitoLegParts.push({
-    start: new Vector3(side * 0.035, -0.01, z),
-    end: new Vector3(side * (0.17 + i * 0.03), -0.13 - i * 0.012, z + 0.1 + i * 0.03),
+// 배: 겹치는 마디 아홉 개가 이어져 가늘어지고, 마디 사이에 흰 고리
+const abdomenRadius = (i) => 0.025 * (1 - (i / 8) * 0.64);
+for (let i = 0; i < 9; i += 1) {
+  const t = i / 8, r = abdomenRadius(i);
+  mosquitoBodyParts.push({ p: [0, -0.004 - t * t * 0.028, 0.036 + i * 0.024], s: [r, r * 0.9, 0.021], color: MQ_COLOR.dark });
+}
+for (const i of [1, 3, 5, 7]) {
+  const t = (i + 0.5) / 8, r = abdomenRadius(i + 0.5) * 1.05;
+  mosquitoBodyParts.push({ p: [0, -0.004 - t * t * 0.028, 0.036 + i * 0.024 + 0.012], s: [r, r * 0.9, 0.0055], color: MQ_COLOR.pale });
+}
+const MQ_STATIC_BODY = mosquitoBodyParts.length;
+const MQ_KNEES = 6;                               // 다리 관절의 흰 점
+const MQ_BODY_N = MQ_STATIC_BODY + MQ_KNEES;
+// 가는 부품: 주둥이, 더듬이 둘 (a→b, 끝이 가늘어짐)
+const mosquitoThinParts = [
+  { a: [0, -0.02, -0.112], b: [0, -0.06, -0.265], r: 0.0032, color: MQ_COLOR.dark },
+  { a: [-0.01, 0.004, -0.112], b: [-0.06, 0.07, -0.2], r: 0.002, color: MQ_COLOR.dark },
+  { a: [0.01, 0.004, -0.112], b: [0.06, 0.07, -0.2], r: 0.002, color: MQ_COLOR.dark },
+];
+const MQ_THIN_STATIC = mosquitoThinParts.length;
+const MQ_THIN_N = MQ_THIN_STATIC + 2; // + 양쪽 날개 앞가장자리 맥
+// 다리: 넓적다리·종아리·발목 세 마디. 날 때 자세 — 앞다리는 앞으로, 가운뎃다리는 옆으로, 뒷다리는 배 위로 길게 뒤로.
+const MQ_LEG_RADII = [0.0036, 0.003, 0.0024];
+const mosquitoLegs = [];
+function defineLeg(side, coxa, ...segments) {
+  mosquitoLegs.push({
+    coxa: new Vector3(coxa[0] * side, coxa[1], coxa[2]),
+    dirs: segments.map(([d]) => new Vector3(d[0] * side, d[1], d[2]).normalize()),
+    lens: segments.map(([, len]) => len),
+    phase: Math.random() * Math.PI * 2,
+    side,
   });
 }
-const mosquitoBodyInstances = new InstancedMesh(new SphereGeometry(1, 6, 4), mosquitoBody, MOSQUITO_POOL * mosquitoBodyParts.length);
-const mosquitoNeedleInstances = new InstancedMesh(new CylinderGeometry(1, 0.7, 1, 4), mosquitoNeedle, MOSQUITO_POOL);
-const mosquitoWingInstances = new InstancedMesh(new PlaneGeometry(1, 1), mosquitoWing, MOSQUITO_POOL * 2);
-const mosquitoLegInstances = new InstancedMesh(new CylinderGeometry(1, 0.72, 1, 3), mosquitoLeg, MOSQUITO_POOL * mosquitoLegParts.length);
-const mosquitoInstanceMeshes = [mosquitoBodyInstances, mosquitoNeedleInstances, mosquitoWingInstances, mosquitoLegInstances];
+for (const side of [-1, 1]) {
+  defineLeg(side, [0.02, -0.022, -0.072], [[0.55, -0.1, -0.8], 0.11], [[0.42, -0.62, -0.66], 0.11], [[0.2, -0.7, -0.68], 0.1]);
+  defineLeg(side, [0.026, -0.026, -0.02], [[0.9, 0.3, 0.3], 0.13], [[0.7, -0.55, 0.45], 0.14], [[0.3, -0.8, 0.52], 0.12]);
+  defineLeg(side, [0.02, -0.018, 0.024], [[0.5, 0.55, 0.67], 0.15], [[0.28, 0.25, 0.93], 0.16], [[0.18, -0.12, 0.98], 0.15]);
+}
+const MQ_LEG_N = mosquitoLegs.length * 3;
+// 날개: 가늘고 긴 잎 모양. 날갯짓은 너무 빨라 눈에 안 보이므로 한쪽에 또렷한 한 장과 흐린 잔상 두 장을 부채꼴로 겹쳐 그린다.
+const MQ_WING_CORE_N = 2, MQ_WING_BLUR_N = 4;
+const MQ_WING_ROOT = [0.021, 0.034, -0.032];
+const MQ_WING_LEN = 0.215, MQ_WING_WIDTH = 0.062;
+function makeWingGeometry() {
+  const shape = new Shape();
+  const N = 22, upper = [], lower = [];
+  for (let i = 0; i <= N; i += 1) {
+    const t = i / N;
+    const w = 0.5 * Math.pow(Math.sin(Math.PI * Math.pow(t, 0.78)), 0.9) * (0.18 + 0.82 * Math.min(1, t * 5));
+    upper.push([t, w]); lower.push([t, -w * 0.82]);
+  }
+  shape.moveTo(0, 0);
+  for (const [x, y] of upper) shape.lineTo(x, y);
+  for (let i = lower.length - 1; i >= 0; i -= 1) shape.lineTo(lower[i][0], lower[i][1]);
+  const geometry = new ShapeGeometry(shape, 1);
+  geometry.rotateX(-Math.PI / 2); // 길이는 +x, 폭은 z, 법선은 +y
+  return geometry;
+}
+const X_AXIS = new Vector3(1, 0, 0);
+const mosquitoWingPoses = { '-1': [], '1': [] }; // 방향별 부채꼴 7단계
+const mosquitoWingDirs = { '-1': [], '1': [] };
+for (const side of [-1, 1]) {
+  for (let k = 0; k < 7; k += 1) {
+    const sweep = MathUtils.degToRad(35 + (k - 3) * 8), tilt = MathUtils.degToRad(10);
+    const dir = new Vector3(Math.cos(sweep) * Math.cos(tilt) * side, Math.sin(tilt), Math.sin(sweep) * Math.cos(tilt)).normalize();
+    mosquitoWingPoses[String(side)].push(new Quaternion().setFromUnitVectors(X_AXIS, dir));
+    mosquitoWingDirs[String(side)].push(dir);
+  }
+}
+
+const mosquitoBodyInstances = new InstancedMesh(new SphereGeometry(1, 8, 6), mosquitoBodyMat, MOSQUITO_POOL * MQ_BODY_N);
+const mosquitoThinInstances = new InstancedMesh(new CylinderGeometry(0.5, 1, 1, 5), mosquitoThinMat, MOSQUITO_POOL * MQ_THIN_N);
+const mosquitoLegInstances = new InstancedMesh(new CylinderGeometry(0.55, 1, 1, 4), mosquitoLegMat, MOSQUITO_POOL * MQ_LEG_N);
+const wingGeometry = makeWingGeometry();
+const mosquitoWingInstances = new InstancedMesh(wingGeometry, mosquitoWingMat, MOSQUITO_POOL * MQ_WING_CORE_N);
+const mosquitoWingBlurInstances = new InstancedMesh(wingGeometry, mosquitoWingBlurMat, MOSQUITO_POOL * MQ_WING_BLUR_N);
+const mosquitoInstanceMeshes = [mosquitoBodyInstances, mosquitoThinInstances, mosquitoLegInstances, mosquitoWingInstances, mosquitoWingBlurInstances];
 const hiddenInstanceMatrix = new Matrix4().makeScale(0, 0, 0);
 for (const mesh of mosquitoInstanceMeshes) {
   mesh.instanceMatrix.setUsage(DynamicDrawUsage);
@@ -5414,19 +5550,27 @@ for (const mesh of mosquitoInstanceMeshes) {
   mesh.instanceMatrix.needsUpdate = true;
   scene.add(mesh);
 }
-const mosquitoDark = new Color(0x1c1c1a), mosquitoStripe = new Color(0x8c8878);
-for (let i = 0; i < MOSQUITO_POOL; i += 1) {
-  for (let j = 0; j < mosquitoBodyParts.length; j += 1) {
-    mosquitoBodyInstances.setColorAt(i * mosquitoBodyParts.length + j, mosquitoBodyParts[j].band ? mosquitoStripe : mosquitoDark);
+{
+  const c = new Color();
+  for (let i = 0; i < MOSQUITO_POOL; i += 1) {
+    for (let j = 0; j < MQ_STATIC_BODY; j += 1) mosquitoBodyInstances.setColorAt(i * MQ_BODY_N + j, c.setHex(mosquitoBodyParts[j].color));
+    for (let j = 0; j < MQ_KNEES; j += 1) mosquitoBodyInstances.setColorAt(i * MQ_BODY_N + MQ_STATIC_BODY + j, c.setHex(MQ_COLOR.pale));
+    for (let j = 0; j < MQ_THIN_STATIC; j += 1) mosquitoThinInstances.setColorAt(i * MQ_THIN_N + j, c.setHex(mosquitoThinParts[j].color));
+    for (let j = MQ_THIN_STATIC; j < MQ_THIN_N; j += 1) mosquitoThinInstances.setColorAt(i * MQ_THIN_N + j, c.setHex(MQ_COLOR.vein));
+    for (let j = 0; j < mosquitoLegs.length; j += 1) {
+      for (let s = 0; s < 3; s += 1) mosquitoLegInstances.setColorAt(i * MQ_LEG_N + j * 3 + s, c.setHex(s === 2 ? MQ_COLOR.tarsus : MQ_COLOR.dark));
+    }
   }
+  for (const mesh of [mosquitoBodyInstances, mosquitoThinInstances, mosquitoLegInstances]) if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 }
-if (mosquitoBodyInstances.instanceColor) mosquitoBodyInstances.instanceColor.needsUpdate = true;
 
 function buildMosquito(index) {
   const g = new Object3D();
   g.userData = {
-    index, seed: 0, active: false, dying: false, deathAge: 0, deathStartedAt: 0, age: 0, phase: Math.random() * Math.PI * 2,
-    velocity: new Vector3(), wanderTarget: new Vector3(), retargetAt: 0, emergeT: 0,
+    index, seed: 0, active: false, dying: false, deathAge: 0, deathStartedAt: 0, squash: 0, age: 0, phase: Math.random() * Math.PI * 2,
+    velocity: new Vector3(), wanderTarget: new Vector3(), retargetAt: 0, jinkAt: 0,
+    mode: 'dart', modeUntil: 0, maxSpeed: 4.5, agility: 22, yaw: 0, roll: 0,
+    diveDist: 2.6, diveSide: new Vector3(), orbitAngle: 0, orbitSpeed: 6, lastDiveAt: -1e9,
     baseScale: 1, outbreakUntil: 0, nearBias: false, rendered: false,
     vanishing: false, vanishStartedAt: 0, vanishDuration: 3,
   };
@@ -5440,19 +5584,59 @@ function updateBuzz() {
   sound.setPopulation(audible ? activeMosquitoes().length : 0);
 }
 
+// 다음 돌진 지점. 가까운 곳으로 짧게 꺾는 쪽이 많아서 지그재그가 된다.
 function pickWanderTarget(m, now = performance.now()) {
-  const compact = now < m.userData.outbreakUntil;
+  const u = m.userData;
+  const compact = now < u.outbreakUntil;
   const minX = compact ? flight.minX * 0.68 : flight.minX;
   const maxX = compact ? flight.maxX * 0.68 : flight.maxX;
   const minZ = compact ? Math.max(flight.minZ, -2.4) : flight.minZ;
   const maxZ = compact ? Math.min(flight.maxZ, 2.8) : flight.maxZ;
-  // 빈자리를 고르게 찾아가지 않고 겹쳐도 되는 임의 지점을 잡아 떼가 지저분하게 뭉친다.
-  m.userData.wanderTarget.set(
-    rand(minX, maxX),
-    rand(compact ? 0.85 : flight.minY, compact ? 3.5 : flight.maxY),
-    compact && m.userData.nearBias ? rand(Math.max(1.2, minZ), maxZ) : rand(minZ, maxZ),
-  );
-  m.userData.retargetAt = now + rand(2600, 6000);
+  const minY = compact ? 0.85 : flight.minY, maxY = compact ? 3.5 : flight.maxY;
+  const t = u.wanderTarget;
+  if (Math.random() < 0.62) {
+    const a = Math.random() * Math.PI * 2, r = rand(1.1, 2.9);
+    t.set(m.position.x + Math.cos(a) * r, m.position.y + rand(-1.2, 1.2), m.position.z + Math.sin(a) * r);
+  } else {
+    t.set(rand(minX, maxX), rand(minY, maxY), compact && u.nearBias ? rand(Math.max(1.2, minZ), maxZ) : rand(minZ, maxZ));
+  }
+  t.x = clamp(t.x, minX, maxX); t.y = clamp(t.y, minY, maxY); t.z = clamp(t.z, minZ, maxZ);
+  u.mode = 'dart';
+  u.retargetAt = now + rand(260, 760);
+  u.jinkAt = now + rand(40, 160);
+}
+let mosquitoDivers = 0;
+function chooseNextMode(m, now) {
+  const u = m.userData;
+  const outbreak = now < u.outbreakUntil;
+  const r = Math.random();
+  const canDive = state.mode === 'room' && !cameraMove && !outbreak && mosquitoDivers < 2 && now - u.lastDiveAt > 9000 && !u.vanishing;
+  if (canDive && r < 0.07) {
+    // 카메라(보는 사람) 코앞까지 달려들었다가 주위를 한 바퀴 돌고 달아난다.
+    u.mode = 'dive'; u.modeUntil = now + 2200; u.lastDiveAt = now; mosquitoDivers += 1;
+    u.diveDist = rand(2.4, 3.3);
+    u.diveSide.set(rand(-0.9, 0.9), rand(-0.5, 0.6), 0);
+    u.orbitSpeed = (Math.random() < 0.5 ? -1 : 1) * rand(5, 8.5);
+    u.orbitAngle = Math.random() * Math.PI * 2;
+  } else if (!outbreak && r < 0.34) {
+    u.mode = 'hover'; u.modeUntil = now + rand(220, 850);
+  } else {
+    pickWanderTarget(m, now);
+  }
+}
+const mosquitoCamForward = new Vector3(), mosquitoCamRight = new Vector3(), mosquitoCamUp = new Vector3();
+function cameraFrontPoint(u, out, withOrbit) {
+  camera.getWorldDirection(mosquitoCamForward);
+  mosquitoCamRight.crossVectors(mosquitoCamForward, UP).normalize();
+  mosquitoCamUp.crossVectors(mosquitoCamRight, mosquitoCamForward).normalize();
+  out.copy(camera.position).addScaledVector(mosquitoCamForward, u.diveDist)
+    .addScaledVector(mosquitoCamRight, u.diveSide.x).addScaledVector(mosquitoCamUp, u.diveSide.y);
+  if (withOrbit) {
+    const r = 0.75;
+    out.addScaledVector(mosquitoCamRight, Math.cos(u.orbitAngle) * r).addScaledVector(mosquitoCamUp, Math.sin(u.orbitAngle) * r * 0.55)
+      .addScaledVector(mosquitoCamForward, Math.sin(u.orbitAngle * 0.5) * 0.35);
+  }
+  return out;
 }
 function spawnMosquito(x, z, lift = 1, { quiet = false, outbreak = false } = {}) {
   const m = mosquitoes.find((o) => !o.userData.active && !o.userData.dying);
@@ -5460,20 +5644,21 @@ function spawnMosquito(x, z, lift = 1, { quiet = false, outbreak = false } = {})
   const u = m.userData;
   const a = Math.random() * Math.PI * 2;
   m.position.set(x, WATER_Y + 0.02, z);
-  const outward = outbreak ? rand(1.25, 2.35) : rand(0.5, 1.1);
-  u.velocity.set(
-    Math.cos(a) * outward,
-    rand(outbreak ? 2.6 : 1.3, outbreak ? 3.8 : 1.9) * lift,
-    Math.sin(a) * outward,
-  );
-  u.phase = Math.random() * Math.PI * 2; u.age = 0; u.dying = false; u.deathAge = 0; u.emergeT = 0;
+  const outward = outbreak ? rand(1.4, 2.6) : rand(0.6, 1.3);
+  u.velocity.set(Math.cos(a) * outward, rand(outbreak ? 3.2 : 1.8, outbreak ? 4.6 : 2.6) * lift, Math.sin(a) * outward);
+  u.phase = Math.random() * Math.PI * 2; u.age = 0; u.dying = false; u.deathAge = 0; u.squash = 0;
   u.vanishing = false; u.vanishStartedAt = 0;
   u.outbreakUntil = outbreak ? performance.now() + 6000 : 0;
   u.nearBias = outbreak && Math.random() < 0.28;
   u.seed = Math.floor(Math.random() * 2147483647); u.active = true;
-  u.baseScale = outbreak ? rand(1.08, u.nearBias ? 1.58 : 1.42) : rand(1.0, 1.35);
-  m.scale.setScalar(u.baseScale); m.rotation.set(0, 0, 0);
+  u.baseScale = outbreak ? rand(1.15, u.nearBias ? 1.7 : 1.5) : rand(1.1, 1.42);
+  u.maxSpeed = rand(3.6, 5.6); u.agility = rand(16, 28);
+  u.mode = 'dart'; u.lastDiveAt = -1e9; u.roll = 0;
+  u.yaw = Math.atan2(-u.velocity.x, -u.velocity.z);
+  m.scale.setScalar(u.baseScale); m.rotation.set(0, u.yaw, 0);
   pickWanderTarget(m);
+  // 물에서 나오자마자 위로 솟구치도록 첫 목표는 머리 위쪽
+  u.wanderTarget.set(x + Math.cos(a) * rand(0.6, 1.6), rand(1.6, 3.2), z + Math.sin(a) * rand(0.6, 1.6));
   if (!quiet) updateBuzz();
   if (!quiet || Math.random() < 0.14) spawnRipple(x, z, 0.8);
   if (!quiet) {
@@ -5485,7 +5670,7 @@ function spawnMosquito(x, z, lift = 1, { quiet = false, outbreak = false } = {})
 function killMosquito(m) {
   if (!m?.userData.active) return;
   m.userData.active = false; m.userData.dying = true; m.userData.vanishing = false;
-  m.userData.deathAge = 0; m.userData.deathStartedAt = performance.now();
+  m.userData.deathAge = 0; m.userData.deathStartedAt = performance.now(); m.userData.squash = 0;
   updateBuzz();
 }
 function quietlyRemoveMosquito(m) {
@@ -5513,10 +5698,14 @@ function leastNoticeableMosquito(list) {
   }
   return best;
 }
+const mosquitoEuler = new Euler(0, 0, 0, 'YXZ');
+const mosquitoQuat = new Quaternion();
 function updateMosquitoes(dt, time, now) {
   const slow = reducedMotion ? 0.3 : 1;
   const actives = activeMosquitoes();
   let populationChanged = false;
+  mosquitoDivers = 0;
+  for (const m of actives) if (m.userData.mode === 'dive' || m.userData.mode === 'orbit') mosquitoDivers += 1;
   for (const m of mosquitoes) {
     const u = m.userData;
     if (u.dying) {
@@ -5524,7 +5713,7 @@ function updateMosquitoes(dt, time, now) {
       const t = clamp(u.deathAge / 0.26, 0, 1);
       m.position.y -= dt * 0.9;
       m.rotation.z += dt * 6;
-      m.scale.set(lerp(1.1, 1.3, t), lerp(1.1, 0.25, t), lerp(1.1, 1.3, t));
+      u.squash = t;
       if (t >= 1) { u.dying = false; m.scale.setScalar(0); }
       continue;
     }
@@ -5541,19 +5730,49 @@ function updateMosquitoes(dt, time, now) {
       m.scale.setScalar(u.baseScale * (1 - tail * 0.12));
     }
     u.age += dt;
-    u.emergeT = Math.min(1, u.emergeT + dt * 1.6);
-    const w = time * 2.1 * slow + u.phase;
-    if (now >= u.retargetAt || m.position.distanceToSquared(u.wanderTarget) < 0.2) pickWanderTarget(m, now);
-    tmpA.copy(u.wanderTarget);
-    tmpA.x += Math.sin(w * 0.83 + u.index) * 0.36;
-    tmpA.y += Math.sin(w * 1.27 + u.index * 0.71) * 0.22;
-    tmpA.z += Math.cos(w * 0.67 + u.index * 1.13) * 0.34;
     const outbreakFlight = now < u.outbreakUntil;
-    tmpB.copy(tmpA).sub(m.position).multiplyScalar((outbreakFlight ? 1.05 : 0.5) * dt * slow);
-    u.velocity.add(tmpB);
-    u.velocity.x += Math.sin(w * 4.4) * 0.07 * dt;
-    u.velocity.y += Math.cos(w * 5.1) * 0.06 * dt;
-    u.velocity.z += Math.cos(w * 3.7) * 0.07 * dt;
+    const maxSpeed = u.maxSpeed * (outbreakFlight ? 1.15 : 1);
+    const diving = u.mode === 'dive' || u.mode === 'orbit';
+
+    if (u.mode === 'dart') {
+      if (now >= u.retargetAt || m.position.distanceToSquared(u.wanderTarget) < 0.16) chooseNextMode(m, now);
+    } else if (u.mode === 'hover') {
+      if (now >= u.modeUntil) chooseNextMode(m, now);
+    } else if (u.mode === 'dive') {
+      cameraFrontPoint(u, u.wanderTarget, false);
+      if (m.position.distanceToSquared(u.wanderTarget) < 0.5) { u.mode = 'orbit'; u.modeUntil = now + rand(600, 1400); }
+      else if (now >= u.modeUntil || state.mode !== 'room') pickWanderTarget(m, now);
+    } else if (u.mode === 'orbit') {
+      u.orbitAngle += dt * u.orbitSpeed * slow;
+      cameraFrontPoint(u, u.wanderTarget, true);
+      if (now >= u.modeUntil || state.mode !== 'room') pickWanderTarget(m, now);
+    }
+
+    if (u.mode === 'hover') {
+      // 제자리에서 떨며 떠 있기. 잡기 좋은 순간.
+      u.velocity.multiplyScalar(Math.pow(0.05, dt));
+      const w = time * 9 + u.phase;
+      u.velocity.x += (Math.sin(w * 1.1) * 0.9 + rand(-1, 1) * 1.6) * dt;
+      u.velocity.y += (Math.cos(w * 1.7) * 0.7 + rand(-1, 1) * 1.2) * dt;
+      u.velocity.z += (Math.sin(w * 0.9 + 1.3) * 0.9 + rand(-1, 1) * 1.6) * dt;
+    } else {
+      // 목표를 향해 세게 가속. 속도 차이만큼 밀어 방향 전환이 즉각적이다.
+      tmpA.copy(u.wanderTarget).sub(m.position);
+      const dist = tmpA.length();
+      if (dist > 1e-4) tmpA.divideScalar(dist);
+      const want = diving ? maxSpeed * 1.35 : maxSpeed;
+      tmpB.copy(tmpA).multiplyScalar(Math.min(want, want * (0.35 + dist * 0.6))).sub(u.velocity);
+      tmpB.clampLength(0, diving ? u.agility * 1.4 : u.agility);
+      u.velocity.addScaledVector(tmpB, dt * slow);
+      if (u.mode === 'dart' && now >= u.jinkAt) {
+        // 옆으로 툭툭 꺾는 지그재그
+        u.jinkAt = now + rand(70, 230);
+        tmpC.set(-u.velocity.z, 0, u.velocity.x);
+        if (tmpC.lengthSq() > 1e-6) tmpC.normalize().multiplyScalar(rand(1.2, 3.2) * (Math.random() < 0.5 ? -1 : 1));
+        tmpC.y += rand(-1.5, 1.5);
+        u.velocity.add(tmpC);
+      }
+    }
     tmpC.set(0, 0, 0);
     // 전수 비교 대신 네 마리만 훑어 160마리에서도 CPU가 튀지 않게 한다.
     for (let k = 0; k < Math.min(4, actives.length); k += 1) {
@@ -5561,101 +5780,174 @@ function updateMosquitoes(dt, time, now) {
       if (!o || o === m) continue;
       tmpA.copy(m.position).sub(o.position);
       const d2 = tmpA.lengthSq();
-      if (d2 <= 1e-4 || d2 >= 0.81) continue;
+      if (d2 <= 1e-4 || d2 >= 0.64) continue;
       const d = Math.sqrt(d2);
-      tmpC.addScaledVector(tmpA, (0.9 - d) / d);
+      tmpC.addScaledVector(tmpA, (0.8 - d) / d);
     }
-    u.velocity.addScaledVector(tmpC, 0.5 * dt * slow);
-    u.velocity.multiplyScalar(Math.pow(outbreakFlight ? 0.978 : 0.965, dt * 60));
-    u.velocity.clampLength(0.2, outbreakFlight ? 3.1 : 1.5);
-    // 화면 밖으로 못 나가게
-    if (m.position.x < flight.minX) u.velocity.x += dt * 2; else if (m.position.x > flight.maxX) u.velocity.x -= dt * 2;
-    if (m.position.z < flight.minZ) u.velocity.z += dt * 2; else if (m.position.z > flight.maxZ) u.velocity.z -= dt * 2;
-    if (m.position.y < flight.minY - 0.2) u.velocity.y += dt * 2; else if (m.position.y > flight.maxY) u.velocity.y -= dt * 2;
+    u.velocity.addScaledVector(tmpC, 1.6 * dt * slow);
+    u.velocity.clampLength(0, maxSpeed * (diving ? 1.6 : 1.3));
+    if (!diving) {
+      // 화면 밖으로 못 나가게. 경계를 넘은 만큼 세게 되돌린다.
+      const p = m.position;
+      if (p.x < flight.minX) u.velocity.x += (flight.minX - p.x + 0.3) * 14 * dt; else if (p.x > flight.maxX) u.velocity.x -= (p.x - flight.maxX + 0.3) * 14 * dt;
+      if (p.z < flight.minZ) u.velocity.z += (flight.minZ - p.z + 0.3) * 14 * dt; else if (p.z > flight.maxZ) u.velocity.z -= (p.z - flight.maxZ + 0.3) * 14 * dt;
+      if (p.y < flight.minY - 0.2) u.velocity.y += (flight.minY - p.y + 0.3) * 14 * dt; else if (p.y > flight.maxY) u.velocity.y -= (p.y - flight.maxY + 0.3) * 14 * dt;
+    } else {
+      // 카메라에 박히지 않게
+      tmpA.copy(m.position).sub(camera.position);
+      const d = tmpA.length();
+      if (d < 1.1 && d > 1e-4) m.position.copy(camera.position).addScaledVector(tmpA, 1.1 / d);
+    }
     m.position.addScaledVector(u.velocity, dt * slow);
-    m.lookAt(tmpA.copy(m.position).sub(u.velocity));
+    if (m.position.y < WATER_Y) m.position.y = WATER_Y;
+
+    // 자세: 속도 방향으로 머리를 두되 급히 꺾으면 몸이 기운다. 떠 있을 때는 머리를 살짝 든다.
+    const speed = u.velocity.length();
+    let yaw = u.yaw, pitch;
+    if (speed > 0.3) {
+      yaw = Math.atan2(-u.velocity.x, -u.velocity.z);
+      pitch = clamp(Math.asin(clamp(u.velocity.y / speed, -1, 1)) * 0.8, -0.9, 0.9);
+    } else {
+      pitch = 0.22 + Math.sin(time * 6 + u.phase) * 0.12;
+    }
+    let dyaw = yaw - u.yaw;
+    if (dyaw > Math.PI) dyaw -= Math.PI * 2; else if (dyaw < -Math.PI) dyaw += Math.PI * 2;
+    u.yaw = yaw;
+    u.roll = damp(u.roll, clamp(-dyaw * 5, -0.65, 0.65), 9, dt);
+    mosquitoEuler.set(pitch, yaw, u.roll, 'YXZ');
+    mosquitoQuat.setFromEuler(mosquitoEuler);
+    m.quaternion.slerp(mosquitoQuat, 1 - Math.exp(-dt * 15));
   }
   if (populationChanged) updateBuzz();
   syncMosquitoInstances(time);
 }
-const mosquitoPartDummy = new Object3D();
-const mosquitoRootMatrix = new Matrix4(), mosquitoComposedMatrix = new Matrix4();
-const mosquitoLegDirection = new Vector3(), mosquitoLegMidpoint = new Vector3();
-function setMosquitoPart(mesh, index, rootMatrix, position, scale, rotation = null, quaternion = null) {
-  mosquitoPartDummy.position.copy(position);
-  mosquitoPartDummy.scale.copy(scale);
-  if (quaternion) mosquitoPartDummy.quaternion.copy(quaternion);
-  else if (rotation) mosquitoPartDummy.rotation.set(rotation[0], rotation[1], rotation[2]);
-  else mosquitoPartDummy.quaternion.identity();
-  mosquitoPartDummy.updateMatrix();
-  mosquitoComposedMatrix.multiplyMatrices(rootMatrix, mosquitoPartDummy.matrix);
-  mesh.setMatrixAt(index, mosquitoComposedMatrix);
+
+/* 인스턴스 행렬 쓰기 — Matrix4.compose와 같은 계산을 배열에 바로 쓴다 (한 마리에 부품 45개). */
+function writeInstance(arr, index, px, py, pz, qx, qy, qz, qw, sx, sy, sz) {
+  const o = index * 16;
+  const x2 = qx + qx, y2 = qy + qy, z2 = qz + qz;
+  const xx = qx * x2, xy = qx * y2, xz = qx * z2, yy = qy * y2, yz = qy * z2, zz = qz * z2, wx = qw * x2, wy = qw * y2, wz = qw * z2;
+  arr[o] = (1 - (yy + zz)) * sx; arr[o + 1] = (xy + wz) * sx; arr[o + 2] = (xz - wy) * sx; arr[o + 3] = 0;
+  arr[o + 4] = (xy - wz) * sy; arr[o + 5] = (1 - (xx + zz)) * sy; arr[o + 6] = (yz + wx) * sy; arr[o + 7] = 0;
+  arr[o + 8] = (xz + wy) * sz; arr[o + 9] = (yz - wx) * sz; arr[o + 10] = (1 - (xx + yy)) * sz; arr[o + 11] = 0;
+  arr[o + 12] = px; arr[o + 13] = py; arr[o + 14] = pz; arr[o + 15] = 1;
 }
+function hideInstance(arr, index) {
+  const o = index * 16;
+  for (let k = 0; k < 16; k += 1) arr[o + k] = 0;
+}
+const mqBodyArr = mosquitoBodyInstances.instanceMatrix.array;
+const mqThinArr = mosquitoThinInstances.instanceMatrix.array;
+const mqLegArr = mosquitoLegInstances.instanceMatrix.array;
+const mqWingArr = mosquitoWingInstances.instanceMatrix.array;
+const mqWingBlurArr = mosquitoWingBlurInstances.instanceMatrix.array;
+const mqRootQ = new Quaternion(), mqPartQ = new Quaternion();
+const mqA = new Vector3(), mqB = new Vector3(), mqDir = new Vector3(), mqJoint = new Vector3();
+const mqWingRoot = new Vector3(), mqWingRootLocal = new Vector3();
+let mqWingTick = 0;
 function hideMosquitoInstances(index) {
-  const bodyBase = index * mosquitoBodyParts.length;
-  for (let j = 0; j < mosquitoBodyParts.length; j += 1) mosquitoBodyInstances.setMatrixAt(bodyBase + j, hiddenInstanceMatrix);
-  mosquitoNeedleInstances.setMatrixAt(index, hiddenInstanceMatrix);
-  mosquitoWingInstances.setMatrixAt(index * 2, hiddenInstanceMatrix);
-  mosquitoWingInstances.setMatrixAt(index * 2 + 1, hiddenInstanceMatrix);
-  const legBase = index * mosquitoLegParts.length;
-  for (let j = 0; j < mosquitoLegParts.length; j += 1) mosquitoLegInstances.setMatrixAt(legBase + j, hiddenInstanceMatrix);
+  for (let j = 0; j < MQ_BODY_N; j += 1) hideInstance(mqBodyArr, index * MQ_BODY_N + j);
+  for (let j = 0; j < MQ_THIN_N; j += 1) hideInstance(mqThinArr, index * MQ_THIN_N + j);
+  for (let j = 0; j < MQ_LEG_N; j += 1) hideInstance(mqLegArr, index * MQ_LEG_N + j);
+  for (let j = 0; j < MQ_WING_CORE_N; j += 1) hideInstance(mqWingArr, index * MQ_WING_CORE_N + j);
+  for (let j = 0; j < MQ_WING_BLUR_N; j += 1) hideInstance(mqWingBlurArr, index * MQ_WING_BLUR_N + j);
 }
+// 몸 좌표의 점 p를 월드로: root 위치 + 회전(scale·p). 죽을 때는 몸 기준 y로 납작해진다.
+function mqWorldPoint(m, s, squashY, p, out) {
+  out.set(p.x * s, p.y * s * squashY, p.z * s).applyQuaternion(mqRootQ).add(m.position);
+  return out;
+}
+// 두 점 a→b 사이를 잇는 원기둥 인스턴스 (반지름 r). 위쪽(+y)이 b 쪽.
+function writeSegment(arr, index, m, s, squashY, a, b, r) {
+  mqWorldPoint(m, s, squashY, a, mqA); mqWorldPoint(m, s, squashY, b, mqB);
+  mqDir.copy(mqB).sub(mqA);
+  const len = mqDir.length();
+  if (len < 1e-6) { hideInstance(arr, index); return; }
+  mqDir.divideScalar(len);
+  mqPartQ.setFromUnitVectors(UP, mqDir);
+  mqA.add(mqB).multiplyScalar(0.5);
+  writeInstance(arr, index, mqA.x, mqA.y, mqA.z, mqPartQ.x, mqPartQ.y, mqPartQ.z, mqPartQ.w, r * s, len, r * s);
+}
+const mqLegJoints = [new Vector3(), new Vector3(), new Vector3(), new Vector3()];
 function syncMosquitoInstances(time) {
   let matricesChanged = false;
+  mqWingTick += 1;
   for (let i = 0; i < mosquitoes.length; i += 1) {
     const m = mosquitoes[i], u = m.userData;
     if (!u.active && !u.dying) {
-      // 이미 감춘 개체의 17개 행렬을 매 프레임 다시 쓰지 않는다.
+      // 이미 감춘 개체의 행렬을 매 프레임 다시 쓰지 않는다.
       if (u.rendered) { hideMosquitoInstances(i); u.rendered = false; matricesChanged = true; }
       continue;
     }
     u.rendered = true; matricesChanged = true;
-    m.updateMatrix(); mosquitoRootMatrix.copy(m.matrix);
-    const bodyBase = i * mosquitoBodyParts.length;
-    for (let j = 0; j < mosquitoBodyParts.length; j += 1) {
+    const s = m.scale.x;
+    const squashY = 1 - u.squash * 0.75, squashXZ = 1 + u.squash * 0.3;
+    mqRootQ.copy(m.quaternion);
+    const bodyBase = i * MQ_BODY_N;
+    for (let j = 0; j < MQ_STATIC_BODY; j += 1) {
       const part = mosquitoBodyParts[j];
-      setMosquitoPart(
-        mosquitoBodyInstances, bodyBase + j, mosquitoRootMatrix,
-        tmpA.set(part.p[0], part.p[1], part.p[2]), tmpB.set(part.s[0], part.s[1], part.s[2]),
-      );
+      mqA.set(part.p[0], part.p[1], part.p[2]);
+      mqWorldPoint(m, s, squashY, mqA, mqB);
+      writeInstance(mqBodyArr, bodyBase + j, mqB.x, mqB.y, mqB.z, mqRootQ.x, mqRootQ.y, mqRootQ.z, mqRootQ.w,
+        part.s[0] * s * squashXZ, part.s[1] * s * squashY, part.s[2] * s * squashXZ);
     }
-    setMosquitoPart(
-      mosquitoNeedleInstances, i, mosquitoRootMatrix,
-      tmpA.set(0, 0, -0.225), tmpB.set(0.006, 0.19, 0.006), [Math.PI / 2, 0, 0],
-    );
-    const flap = Math.sin(time * 75 + u.phase) * 0.55;
-    setMosquitoPart(
-      mosquitoWingInstances, i * 2, mosquitoRootMatrix,
-      tmpA.set(-0.13, 0.03, 0), tmpB.set(0.25, 0.085, 1), [0, -0.25, 0.28 + flap],
-    );
-    setMosquitoPart(
-      mosquitoWingInstances, i * 2 + 1, mosquitoRootMatrix,
-      tmpA.set(0.13, 0.03, 0), tmpB.set(0.25, 0.085, 1), [0, 0.25, -0.28 - flap],
-    );
-    const legBase = i * mosquitoLegParts.length;
-    for (let j = 0; j < mosquitoLegParts.length; j += 1) {
-      const leg = mosquitoLegParts[j];
-      mosquitoLegDirection.copy(leg.end).sub(leg.start);
-      const length = mosquitoLegDirection.length();
-      mosquitoLegMidpoint.copy(leg.start).add(leg.end).multiplyScalar(0.5);
-      mosquitoPartDummy.quaternion.setFromUnitVectors(UP, mosquitoLegDirection.normalize());
-      setMosquitoPart(
-        mosquitoLegInstances, legBase + j, mosquitoRootMatrix,
-        mosquitoLegMidpoint, tmpB.set(0.006, length, 0.006), null, mosquitoPartDummy.quaternion,
-      );
+    const thinBase = i * MQ_THIN_N;
+    for (let j = 0; j < MQ_THIN_STATIC; j += 1) {
+      const part = mosquitoThinParts[j];
+      mqA.set(part.a[0], part.a[1], part.a[2]); mqJoint.set(part.b[0], part.b[1], part.b[2]);
+      writeSegment(mqThinArr, thinBase + j, m, s, squashY, mqA, mqJoint, part.r);
+    }
+    // 다리: 관절을 몸 좌표에서 계산한 뒤 마디마다 원기둥을 잇는다. 날면서 다리가 가볍게 흔들린다.
+    const legBase = i * MQ_LEG_N;
+    const swayT = time * 7.5 + u.phase;
+    for (let j = 0; j < mosquitoLegs.length; j += 1) {
+      const leg = mosquitoLegs[j];
+      const sway = Math.sin(swayT + leg.phase) * 0.018;
+      mqLegJoints[0].copy(leg.coxa);
+      for (let k = 0; k < 3; k += 1) {
+        mqLegJoints[k + 1].copy(mqLegJoints[k]).addScaledVector(leg.dirs[k], leg.lens[k]);
+        mqLegJoints[k + 1].y += sway * (k + 1) * 0.6;
+        mqLegJoints[k + 1].x += sway * (k + 1) * 0.35 * leg.side;
+      }
+      for (let k = 0; k < 3; k += 1) writeSegment(mqLegArr, legBase + j * 3 + k, m, s, squashY, mqLegJoints[k], mqLegJoints[k + 1], MQ_LEG_RADII[k]);
+      // 무릎의 흰 점
+      mqWorldPoint(m, s, squashY, mqLegJoints[1], mqB);
+      writeInstance(mqBodyArr, bodyBase + MQ_STATIC_BODY + j, mqB.x, mqB.y, mqB.z, mqRootQ.x, mqRootQ.y, mqRootQ.z, mqRootQ.w, 0.0052 * s, 0.0052 * s, 0.0052 * s);
+    }
+    // 날개: 또렷한 한 장은 부채꼴 가운데 근처에서, 흐린 두 장은 양 끝에서 프레임마다 자리를 바꿔 잔상처럼 보이게 한다.
+    const kCore = 2 + (mqWingTick * 7 + u.index * 3) % 3;
+    const kFront = (mqWingTick + u.index) % 2, kBack = 5 + (mqWingTick * 3 + u.index) % 2;
+    for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
+      const side = sideIndex === 0 ? -1 : 1;
+      const poses = mosquitoWingPoses[String(side)];
+      mqWingRootLocal.set(MQ_WING_ROOT[0] * side, MQ_WING_ROOT[1], MQ_WING_ROOT[2]);
+      mqWorldPoint(m, s, squashY, mqWingRootLocal, mqWingRoot);
+      mqPartQ.copy(mqRootQ).multiply(poses[kCore]);
+      writeInstance(mqWingArr, i * MQ_WING_CORE_N + sideIndex, mqWingRoot.x, mqWingRoot.y, mqWingRoot.z, mqPartQ.x, mqPartQ.y, mqPartQ.z, mqPartQ.w, MQ_WING_LEN * s, s, MQ_WING_WIDTH * s);
+      mqPartQ.copy(mqRootQ).multiply(poses[kFront]);
+      writeInstance(mqWingBlurArr, i * MQ_WING_BLUR_N + sideIndex * 2, mqWingRoot.x, mqWingRoot.y, mqWingRoot.z, mqPartQ.x, mqPartQ.y, mqPartQ.z, mqPartQ.w, MQ_WING_LEN * s, s, MQ_WING_WIDTH * s);
+      mqPartQ.copy(mqRootQ).multiply(poses[kBack]);
+      writeInstance(mqWingBlurArr, i * MQ_WING_BLUR_N + sideIndex * 2 + 1, mqWingRoot.x, mqWingRoot.y, mqWingRoot.z, mqPartQ.x, mqPartQ.y, mqPartQ.z, mqPartQ.w, MQ_WING_LEN * s, s, MQ_WING_WIDTH * s);
+      // 또렷한 날개의 앞가장자리 맥
+      mqJoint.copy(mqWingRootLocal).addScaledVector(mosquitoWingDirs[String(side)][kCore], MQ_WING_LEN * 0.97);
+      writeSegment(mqThinArr, thinBase + MQ_THIN_STATIC + sideIndex, m, s, squashY, mqWingRootLocal, mqJoint, 0.0016);
     }
   }
   if (matricesChanged) for (const mesh of mosquitoInstanceMeshes) mesh.instanceMatrix.needsUpdate = true;
 }
 function mosquitoAtPointer(clientX, clientY, pointerType = 'mouse') {
-  let best = null, bestD = pointerType === 'touch' ? 48 : 28;
+  const base = pointerType === 'touch' ? 54 : 30;
+  let best = null, bestScore = 1;
   for (const m of mosquitoes) {
     if (!m.userData.active) continue;
     tmpA.copy(m.position).project(camera);
+    if (tmpA.z > 1) continue;
     const sx = (tmpA.x + 1) * 0.5 * window.innerWidth;
     const sy = (1 - tmpA.y) * 0.5 * window.innerHeight;
-    const d = Math.hypot(sx - clientX, sy - clientY);
-    if (d < bestD) { bestD = d; best = m; }
+    // 코앞까지 달려든 녀석은 화면에서 크니 그만큼 넓게 받아준다.
+    const limit = base * clamp(9 / Math.max(2.5, m.position.distanceTo(camera.position)), 1, 3);
+    const score = Math.hypot(sx - clientX, sy - clientY) / limit;
+    if (score < bestScore) { bestScore = score; best = m; }
   }
   return best;
 }
@@ -6221,28 +6513,66 @@ canvas.addEventListener('keydown', (e) => {
 function specimenImage(seed) {
   if (specimenImageCache.has(seed)) return specimenImageCache.get(seed);
   const rnd = seededRandom(seed);
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const S = 320;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
   const g = c.getContext('2d');
-  g.translate(128, 128); g.rotate((rnd() - 0.5) * 0.26);
+  g.translate(S / 2, S / 2 + 6); g.rotate((rnd() - 0.5) * 0.3);
   g.lineCap = 'round'; g.lineJoin = 'round';
-  // 날개
-  g.save(); g.globalAlpha = 0.34; g.fillStyle = '#a7ab9f'; g.strokeStyle = '#6f746c'; g.lineWidth = 2;
-  g.beginPath(); g.ellipse(-38, -22, 48, 17, -0.42, 0, Math.PI * 2); g.ellipse(38, -22, 48, 17, 0.42, 0, Math.PI * 2); g.fill(); g.stroke(); g.restore();
-  // 몸통·배 줄무늬
-  g.strokeStyle = '#20211e'; g.fillStyle = '#1a1b19'; g.lineWidth = 5;
-  g.beginPath(); g.ellipse(0, 0, 16, 21, 0, 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.ellipse(1, 49, 11, 34, 0, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = 'rgba(160, 156, 140, 0.8)'; g.lineWidth = 3;
-  for (let i = 0; i < 4; i += 1) { g.beginPath(); g.moveTo(-8, 28 + i * 13); g.lineTo(9, 28 + i * 13); g.stroke(); }
-  g.fillStyle = '#1a1b19'; g.beginPath(); g.arc(0, -23, 11, 0, Math.PI * 2); g.fill();
-  // 다리
-  g.strokeStyle = '#20211e'; g.lineWidth = 3;
-  for (const side of [-1, 1]) for (let l = 0; l < 3; l += 1) {
-    const y0 = -2 + l * 19, len = 63 + l * 8;
-    g.beginPath(); g.moveTo(side * 7, y0); g.lineTo(side * (30 + l * 5), y0 + 24); g.lineTo(side * len, y0 + 47 + (rnd() - 0.5) * 8); g.stroke();
+  const DARK = '#1c1915', PALE = '#d9d2bf';
+  const jitter = (amount) => (rnd() - 0.5) * amount;
+  // 다리: 앞다리는 앞으로, 가운뎃다리는 옆으로, 뒷다리는 뒤로 길게. 마디 셋, 발목은 희게, 무릎에 흰 점.
+  const legs = [
+    { y0: -36, a: [-1.15, 0.5, -0.1], l: [46, 44, 40] },
+    { y0: -22, a: [-0.35, 0.95, 0.55], l: [54, 56, 48] },
+    { y0: -8, a: [0.55, 0.85, 1.12], l: [60, 62, 58] },
+  ];
+  for (const side of [-1, 1]) {
+    for (const leg of legs) {
+      let x = side * 9, y = leg.y0, angle = 0;
+      const pts = [[x, y]];
+      for (let k = 0; k < 3; k += 1) {
+        angle = leg.a[k] + jitter(0.3);
+        x += Math.cos(angle) * leg.l[k] * side; y += Math.sin(angle) * leg.l[k];
+        pts.push([x, y]);
+      }
+      g.lineWidth = 4.2; g.strokeStyle = DARK;
+      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); g.lineTo(pts[1][0], pts[1][1]); g.lineTo(pts[2][0], pts[2][1]); g.stroke();
+      g.lineWidth = 3.4; g.strokeStyle = PALE;
+      g.beginPath(); g.moveTo(pts[2][0], pts[2][1]); g.lineTo(pts[3][0], pts[3][1]); g.stroke();
+      g.fillStyle = PALE; g.beginPath(); g.arc(pts[1][0], pts[1][1], 3.2, 0, Math.PI * 2); g.fill();
+    }
   }
-  // 주둥이
-  g.lineWidth = 2.6; g.beginPath(); g.moveTo(0, -31); g.lineTo((rnd() - 0.5) * 8, -91); g.stroke();
+  // 날개: 가늘고 긴 잎 두 장, 등 뒤로 비스듬히. 맥 몇 줄.
+  for (const side of [-1, 1]) {
+    g.save();
+    g.translate(side * 7, -26); g.rotate(side * (0.62 + jitter(0.16)));
+    g.globalAlpha = 0.42; g.fillStyle = '#c9cec2'; g.strokeStyle = '#6a6f66'; g.lineWidth = 1.6;
+    g.beginPath();
+    g.moveTo(0, 0); g.bezierCurveTo(-18, 30, -22, 78, -3, 108); g.bezierCurveTo(14, 78, 12, 30, 0, 0);
+    g.fill(); g.stroke();
+    g.globalAlpha = 0.5; g.lineWidth = 1;
+    for (const [cx, ex] of [[-10, -8], [-3, -1], [5, 4]]) { g.beginPath(); g.moveTo(0, 4); g.quadraticCurveTo(cx, 60, ex, 100); g.stroke(); }
+    g.restore();
+  }
+  // 배: 길고 가늘게, 흰 띠
+  g.fillStyle = DARK;
+  g.beginPath(); g.moveTo(-11, -6); g.bezierCurveTo(-14, 30, -10, 70, -3, 92); g.lineTo(3, 92); g.bezierCurveTo(10, 70, 14, 30, 11, -6); g.closePath(); g.fill();
+  g.strokeStyle = PALE; g.lineWidth = 3.2;
+  for (let i = 0; i < 5; i += 1) {
+    const y = 12 + i * 15, hw = 10.5 - i * 1.5;
+    g.beginPath(); g.moveTo(-hw, y); g.lineTo(hw, y); g.stroke();
+  }
+  // 가슴: 불룩한 등, 등 가운데 흰 줄
+  g.fillStyle = DARK; g.beginPath(); g.ellipse(0, -26, 16, 23, 0, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#efeadf'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, -44); g.lineTo(0, -16); g.stroke();
+  // 머리·눈·더듬이·주둥이
+  g.fillStyle = DARK; g.beginPath(); g.arc(0, -57, 10, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#2f2b27';
+  g.beginPath(); g.arc(-8, -59, 6, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(8, -59, 6, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = DARK; g.lineWidth = 1.8;
+  for (const side of [-1, 1]) { g.beginPath(); g.moveTo(side * 4, -64); g.quadraticCurveTo(side * 22, -86, side * (30 + jitter(8)), -100); g.stroke(); }
+  g.lineWidth = 3; g.beginPath(); g.moveTo(0, -66); g.quadraticCurveTo(jitter(10), -100, jitter(12), -136); g.stroke();
   const url = c.toDataURL('image/png');
   specimenImageCache.set(seed, url);
   return url;
@@ -6598,6 +6928,7 @@ function frame() {
   stirWater(dt, now);
   updateLarvae(dt, now, tipInWater && pen.held, tipInWater ? pen.control : null);
   updateMosquitoes(dt, elapsed, now);
+  if (state.mode === 'room' || state.mode === 'keyboard-stir') sound.updateVoices(mosquitoes, camera, now);
   updateRipples(dt); updateBubbles(dt, now); updateDrips(dt);
   updateCameraMove(now);
   // 다이어리 표지가 살짝 들림 (가리키거나 방금 붙였을 때)
