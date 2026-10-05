@@ -4287,12 +4287,13 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
 
 #scene {
   position: fixed; inset: 0; width: 100%; height: 100%;
-  display: block; touch-action: none; cursor: grab;
+  display: block; touch-action: none; cursor: default;
 }
 #scene:focus { outline: none; }
 #scene:focus-visible { box-shadow: inset 0 0 0 3px rgba(246, 240, 228, .45); }
 #scene.is-dragging { cursor: grabbing; }
-#scene.can-catch, #scene.can-open-book { cursor: pointer; }
+#scene.can-grab-pen { cursor: grab; }
+#scene.can-open-book { cursor: pointer; }
 
 .scene-actions {
   position: fixed; inset: auto var(--safe-right) var(--safe-bottom) var(--safe-left);
@@ -4391,13 +4392,9 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
 .mount-existing { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .pending-specimen { z-index: 5; }
 .pending-specimen img, .saved-specimen img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.pending-specimen.is-wriggling img { animation: wriggle .19s ease-in-out infinite alternate; }
 .pending-specimen.is-flattened img { animation: flatten .28s ease-out forwards; }
+.saved-specimen img { transform: scale(1.05, .78); filter: saturate(.58) brightness(.82); }
 
-@keyframes wriggle {
-  0% { transform: translate(-2px) rotate(-2deg) scaleY(1.02); }
-  to { transform: translate(2px) rotate(2deg) scaleY(.96); }
-}
 @keyframes flatten {
   0% { transform: scale(1); filter: saturate(1); }
   50% { transform: scale(1.12, .62); }
@@ -4507,7 +4504,7 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
   </head>
   <body>
     <main id="app" aria-label="사유의 방 3D 전시">
-      <p id="sceneHelp" class="sr-only">커다란 볼펜을 드래그해 맨홀 속을 휘저으면 모기가 날아오릅니다. 키보드에서는 스페이스바로 맨홀을 휘젓고, M 키로 가장 가까운 모기를 잡고, D 키로 다이어리를 엽니다.</p>
+      <p id="sceneHelp" class="sr-only">보이는 볼펜을 직접 잡아 맨홀 속을 휘저으면 모기가 날아오릅니다. 날아오른 모기는 볼펜으로 쳐서 잡습니다. 키보드에서는 스페이스바로 맨홀을 휘젓고, M 키로 가장 가까운 모기를 잡고, D 키로 다이어리를 엽니다.</p>
       <canvas id="scene" tabindex="0" aria-describedby="sceneHelp" aria-label="가운데 바닥에 뚜껑이 열린 맨홀과 커다란 볼펜이 놓인 전시장"></canvas>
 
       <p id="hint" class="hint" role="status">볼펜을 끌어 맨홀 속을 휘저으세요</p>
@@ -4518,6 +4515,7 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
       </nav>
 
       <section id="mountOverlay" class="overlay" role="dialog" aria-modal="true" aria-label="다이어리에 붙이기" aria-hidden="true">
+        <button id="cancelMount" class="close-book" type="button" aria-label="붙이기를 그만두고 방으로 돌아가기">방으로</button>
         <div class="book-shell mounting-book">
           <div id="mountPage" class="paper mount-page" tabindex="0" aria-describedby="mountHint" aria-label="모기를 붙일 다이어리 페이지">
             <time id="mountDate" class="page-date"></time>
@@ -4559,7 +4557,7 @@ const {
   BufferGeometry, Shape, Path, ShapeGeometry, BoxGeometry, CylinderGeometry, SphereGeometry,
   TorusGeometry, RingGeometry, PlaneGeometry, CircleGeometry, CanvasTexture, HemisphereLight,
   SpotLight, Fog, SRGBColorSpace, ACESFilmicToneMapping, PCFShadowMap, RepeatWrapping,
-  DoubleSide, BackSide, MathUtils, Quaternion,
+  DoubleSide, BackSide, MathUtils,
 } = window.THREE;
 
 /* ───────────────────────── DOM ───────────────────────── */
@@ -4569,6 +4567,7 @@ const diaryButton = document.querySelector('#diaryButton');
 const soundButton = document.querySelector('#soundButton');
 const sceneActions = document.querySelector('.scene-actions');
 const mountOverlay = document.querySelector('#mountOverlay');
+const cancelMountButton = document.querySelector('#cancelMount');
 const mountPage = document.querySelector('#mountPage');
 const mountDate = document.querySelector('#mountDate');
 const mountExisting = document.querySelector('#mountExisting');
@@ -4661,19 +4660,20 @@ const specimenImageCache = new Map();
 
 /* ───────────────────────── 상태 ───────────────────────── */
 const state = {
-  mode: 'room',              // room | keyboard-stir | transition | mount-transition | mounting | taping | mount-finished | diary-transition | diary | room-transition
+  mode: 'room',              // room | keyboard-stir | capture | mount-transition | mounting | taping | mount-finished | diary-transition | diary | room-transition
   pointerId: null,
   pointerType: 'mouse',
   pointerStartX: 0, pointerStartY: 0,
   penDragging: false,
-  tapMosquito: null, tapBook: false,
+  tapBook: false,
   bookHovered: false, bookPulseUntil: 0,
   pending: null,
   tapeDragging: false, tapePointerId: null,
   diaryIndex: 0,
+  finishReadyAt: 0,
   hasStirred: false,
   shownCatchHint: false, shownDiaryHint: false,
-  nextSpontaneousAt: Infinity,
+  hasOpenedDiary: false,
 };
 
 /* ───────────────────────── 소리 ───────────────────────── */
@@ -4684,15 +4684,16 @@ class SoundKit {
     this.lastBubble = 0; this.lastSplash = 0;
   }
   ensure() {
+    if (settings.muted) return;
     if (this.initialized) {
-      if (this.ctx.state === 'suspended' && !settings.muted) this.ctx.resume();
+      if (this.ctx.state === 'suspended') this.ctx.resume();
       return;
     }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     const ctx = this.ctx = new AC();
     this.master = ctx.createGain();
-    this.master.gain.value = settings.muted ? 0 : 0.5;
+    this.master.gain.value = 0.5;
     this.master.connect(ctx.destination);
 
     // 모기 떼 소리: 톱니파 + 삼각파를 밴드패스로 걸러 비브라토·떨림을 얹음
@@ -4725,7 +4726,7 @@ class SoundKit {
     for (let i = 0; i < bufLen; i += 1) {
       const white = Math.random() * 2 - 1;
       last = (last + 0.02 * white) / 1.02;
-      data[i] = last * 3.5;
+      data[i] = last * 2.1;
     }
     const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
     this.waterFilter = ctx.createBiquadFilter(); this.waterFilter.type = 'lowpass';
@@ -4738,27 +4739,30 @@ class SoundKit {
     this.setPopulation(this.population, true);
   }
   setMuted(m) {
-    settings.muted = m; saveSettings(); this.ensure();
+    settings.muted = m; saveSettings();
+    if (!m) this.ensure();
     if (this.master && this.ctx) {
       this.master.gain.cancelScheduledValues(this.ctx.currentTime);
       this.master.gain.setTargetAtTime(m ? 0 : 0.5, this.ctx.currentTime, 0.035);
+      if (m) setTimeout(() => { if (settings.muted && this.ctx?.state === 'running') this.ctx.suspend(); }, 90);
+      else if (this.ctx.state === 'suspended') this.ctx.resume();
     }
     updateSoundButton();
   }
   setPopulation(n, immediate = false) {
     this.population = n;
     if (!this.initialized) return;
-    const target = n === 0 ? 0.0001 : Math.min(0.05, 0.006 + Math.sqrt(n) * 0.0062);
+    const target = n === 0 ? 0.0001 : Math.min(0.12, 0.024 + Math.sqrt(n) * 0.022);
     const t = this.ctx.currentTime;
     this.buzzGain.gain.cancelScheduledValues(t);
     if (immediate) this.buzzGain.gain.setValueAtTime(target, t);
     else this.buzzGain.gain.setTargetAtTime(target, t, n ? 0.3 : 0.6);
   }
   setWater(level) { // 0~1
-    if (!this.initialized) return;
+    if (!this.initialized || settings.muted || this.ctx?.state === 'suspended') return;
     const t = this.ctx.currentTime;
-    this.waterGain.gain.setTargetAtTime(0.0001 + level * 0.22, t, 0.06);
-    this.waterFilter.frequency.setTargetAtTime(380 + level * 900, t, 0.08);
+    this.waterGain.gain.setTargetAtTime(0.0001 + level * 0.026, t, 0.12);
+    this.waterFilter.frequency.setTargetAtTime(280 + level * 480, t, 0.12);
   }
   noiseBurst({ duration = 0.16, gain = 0.15, lowpass = 1600, highpass = 0, attack = 0.006, type = 'lowpass' } = {}) {
     this.ensure();
@@ -4802,9 +4806,8 @@ class SoundKit {
     this.tone({ from: 150 + strength * 60, to: 60, duration: 0.14, gain: 0.05 + strength * 0.04, type: 'sine' });
   }
   plunge() {
-    this.noiseBurst({ duration: 0.3, gain: 0.14, lowpass: 900, attack: 0.004 });
-    this.tone({ from: 220, to: 70, duration: 0.22, gain: 0.11, type: 'sine' });
-    this.tone({ from: 480, to: 160, duration: 0.09, gain: 0.03, type: 'triangle', delay: 0.03 });
+    this.noiseBurst({ duration: 0.2, gain: 0.035, lowpass: 560, attack: 0.012 });
+    this.tone({ from: 145, to: 78, duration: 0.16, gain: 0.025, type: 'sine' });
   }
   bubble() {
     const now = performance.now();
@@ -4854,7 +4857,7 @@ try {
   fallbackEl.hidden = false;
   throw new Error('WebGL renderer unavailable');
 }
-function pixelRatio() { return Math.min(window.devicePixelRatio || 1, window.innerWidth < 720 ? 1.6 : 2); }
+function pixelRatio() { return Math.min(window.devicePixelRatio || 1, window.innerWidth < 720 ? 1.35 : 2); }
 renderer.setPixelRatio(pixelRatio());
 renderer.setSize(window.innerWidth, window.innerHeight, false);
 renderer.outputColorSpace = SRGBColorSpace;
@@ -4887,7 +4890,8 @@ const keyLight = new SpotLight(0xfff1dc, 125, 22, Math.PI / 6.3, 0.7, 1.55);
 keyLight.position.set(-2.4, 7.2, 3.6);
 keyLight.target.position.set(0.2, 0, 0.2);
 keyLight.castShadow = true;
-keyLight.shadow.mapSize.set(2048, 2048);
+const shadowSize = window.innerWidth < 720 ? 1024 : 2048;
+keyLight.shadow.mapSize.set(shadowSize, shadowSize);
 keyLight.shadow.bias = -0.00022;
 keyLight.shadow.normalBias = 0.015;
 keyLight.shadow.radius = 5;
@@ -4988,7 +4992,7 @@ const rightWall = leftWall.clone();
 rightWall.position.x = 11.9;
 scene.add(rightWall);
 
-/* 벽 글씨: 제목 + 명제표 */
+/* 어두운 전시실 벽에 남는 작품 제목 */
 const wallCanvas = document.createElement('canvas');
 wallCanvas.width = 2048; wallCanvas.height = 1024;
 const wallTexture = new CanvasTexture(wallCanvas);
@@ -4999,24 +5003,24 @@ function drawWallText() {
   g.clearRect(0, 0, wallCanvas.width, wallCanvas.height);
   g.textAlign = 'center'; g.textBaseline = 'middle';
   const serif = '"Nanum Myeongjo", "Apple Myungjo", Batang, "Noto Serif KR", serif';
-  const sans = '"Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
-  g.fillStyle = 'rgba(22, 15, 10, 0.94)';
+  g.shadowColor = 'rgba(0, 0, 0, 0.38)';
+  g.shadowBlur = 18;
+  g.fillStyle = 'rgba(239, 224, 198, 0.9)';
   g.font = `400 230px ${serif}`;
   g.fillText('사유의 방', 1024, 300);
-  g.fillStyle = 'rgba(22, 15, 10, 0.8)';
+  g.shadowBlur = 10;
+  g.fillStyle = 'rgba(224, 204, 175, 0.76)';
   g.font = `400 80px ${serif}`;
   g.fillText('Room of Thought', 1024, 478);
   wallTexture.needsUpdate = true;
 }
 drawWallText();
-const wallText = new Mesh(new PlaneGeometry(5.4, 2.7), new MeshStandardMaterial({ map: wallTexture, transparent: true, roughness: 0.95, depthWrite: false }));
+const wallText = new Mesh(new PlaneGeometry(5.4, 2.7), new MeshBasicMaterial({ map: wallTexture, transparent: true, depthWrite: false, toneMapped: false }));
 wallText.position.set(0, 2.15, WALL_Z + 0.012);
 scene.add(wallText);
 if (document.fonts?.load) {
   Promise.all([
     document.fonts.load('400 230px "Nanum Myeongjo"'),
-    document.fonts.load('500 70px "Noto Sans KR"'),
-    document.fonts.load('400 58px "Noto Sans KR"'),
   ]).then(drawWallText).catch(() => {});
 }
 
@@ -5332,7 +5336,6 @@ const mosquitoWing = new MeshStandardMaterial({ color: 0xdfe3d8, transparent: tr
 const mosquitoLeg = new LineBasicMaterial({ color: 0x151512, transparent: true, opacity: 0.86 });
 const hitMaterial = new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
 const mosquitoes = [];
-const hitSpheres = [];
 const flight = { minX: -5.5, maxX: 5.5, minY: 0.75, maxY: 4.0, minZ: -4.4, maxZ: 3.0 };
 
 function buildMosquito(index) {
@@ -5367,9 +5370,6 @@ function buildMosquito(index) {
   }
   const legs = new LineSegments(new BufferGeometry().setFromPoints(pts), mosquitoLeg);
   g.add(legs);
-  // 탭 판정용 투명 구
-  const hit = new Mesh(new SphereGeometry(0.34, 8, 6), hitMaterial);
-  hit.userData.mosquitoIndex = index; g.add(hit); hitSpheres.push(hit);
   g.visible = false;
   g.userData = {
     index, seed: 0, active: false, dying: false, deathAge: 0, age: 0, phase: Math.random() * Math.PI * 2,
@@ -5466,34 +5466,19 @@ function updateMosquitoes(dt, time, now) {
     u.leftWing.rotation.z = 0.26 + flap; u.rightWing.rotation.z = -0.26 - flap;
   }
 }
-function mosquitoAtPointer(clientX, clientY) {
-  setNdc(clientX, clientY);
-  raycaster.setFromCamera(ndc, camera);
-  for (const hit of raycaster.intersectObjects(hitSpheres, false)) {
-    const m = mosquitoes[hit.object.userData.mosquitoIndex];
-    if (m?.userData.active) return m;
-  }
-  // 터치는 작은 모기를 정확히 짚기 어려우니 화면 거리로도 판정
-  let best = null, bestD = 38;
-  for (const m of mosquitoes) {
-    if (!m.userData.active) continue;
-    tmpA.copy(m.position).project(camera);
-    const sx = (tmpA.x + 1) / 2 * window.innerWidth, sy = (1 - tmpA.y) / 2 * window.innerHeight;
-    const d = Math.hypot(sx - clientX, sy - clientY);
-    if (d < bestD) { bestD = d; best = m; }
-  }
-  return best;
-}
 
-/* ───────────────────────── 볼펜 (모나미 153) ───────────────────────── */
+/* ───────────────────────── 볼펜 (MINAMI) ───────────────────────── */
+let penHit;
 const pen = {
   group: new Group(), body: new Group(),
   tip: new Vector3(), vel: new Vector3(), dir: new Vector3(0, 1, 0), target: new Vector3(),
+  prevTip: new Vector3(), prevDir: new Vector3(0, 1, 0),
   held: false, inWater: false, wet: 0, wetLine: 0, dripAccumulator: 0,
   restTip: new Vector3(1.25, PEN_HOVER_Y, 1.75), restDir: new Vector3(0.72, 0.17, 0.67).normalize(),
-  heldDir: new Vector3(0.22, 1, 0.3).normalize(),
+  heldDir: new Vector3(0.14, 1, 0.18).normalize(),
   returnUntil: 0, returnTarget: new Vector3(),
   control: new Vector3(), controlPrev: new Vector3(), controlVel: new Vector3(), controlSpeed: 0,
+  swatReadyAt: Infinity,
   wetSleeves: [],
 };
 function makeLogoTexture() {
@@ -5503,7 +5488,7 @@ function makeLogoTexture() {
   g.fillStyle = 'rgba(18, 18, 20, 0.9)';
   g.font = '700 70px Arial, "Helvetica Neue", sans-serif';
   g.textAlign = 'left'; g.textBaseline = 'middle';
-  g.fillText('MONAMI 153', 60, 64);
+  g.fillText('MINAMI 153', 60, 64);
   g.font = '400 42px Arial, sans-serif';
   g.fillText('0.7', 620, 66);
   g.beginPath(); g.arc(760, 64, 22, 0, Math.PI * 2); g.fill();
@@ -5514,7 +5499,6 @@ function makeLogoTexture() {
   return t;
 }
 const LOGO_FACE_ANGLE = Math.PI / 6;
-const tmpQ = new Quaternion();
 function buildPen() {
   const R = 0.19; // 몸통 반지름
   const white = new MeshStandardMaterial({ color: 0xf4f2ec, roughness: 0.52, metalness: 0.02, flatShading: true });
@@ -5536,7 +5520,7 @@ function buildPen() {
   const clip = add(new BoxGeometry(0.075, 1.05, 0.045), black, 3.95, R + 0.055, 0);
   clip.rotation.z = 0.025; clipRoot.rotation.z = 0.025;
   add(new SphereGeometry(0.046, 8, 6), black, 3.42, R + 0.06, 0);
-  // 로고: 한 면에 인쇄 (몸통을 축 둘레로 돌려 항상 카메라 쪽을 보게 함)
+  // 로고: 육각 몸통 한 면에만 작게 인쇄
   const logoTex = makeLogoTexture();
   const logoMat = new MeshStandardMaterial({ map: logoTex, transparent: true, roughness: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
   const holder = new Group(); holder.rotation.y = LOGO_FACE_ANGLE;
@@ -5549,20 +5533,78 @@ function buildPen() {
   const s1 = new Mesh(new CylinderGeometry(R * 1.015, R * 1.015, 0.34, 6, 1, true), sleeveMat()); s1.position.y = 1.04 + 0.17;
   const s2 = new Mesh(new CylinderGeometry(R * 1.015, R * 1.015, 0.22, 6, 1, true), sleeveMat()); s2.position.y = 1.04 + 0.34 + 0.11;
   pen.body.add(s1, s2); pen.wetSleeves.push([s1, 0.75], [s2, 0.35]);
+  // 화면에서 보이는 부분을 넉넉히 잡되, 빈 바닥을 눌러 원격 조종되지는 않게 한다.
+  penHit = new Mesh(new CylinderGeometry(0.42, 0.42, 5.05, 10), hitMaterial);
+  penHit.position.y = 2.5;
+  pen.body.add(penHit);
+  pen.body.scale.setScalar(0.84);
   pen.group.add(pen.body);
   scene.add(pen.group);
 }
 buildPen();
 pen.tip.copy(pen.restTip); pen.dir.copy(pen.restDir);
+pen.prevTip.copy(pen.tip); pen.prevDir.copy(pen.dir);
 
 function placePen() {
   pen.group.position.copy(pen.tip);
   pen.group.quaternion.setFromUnitVectors(UP, pen.dir);
-  // 로고 면이 카메라를 향하도록 몸통을 축 둘레로 돌림
-  tmpA.copy(camera.position).sub(pen.tip).applyQuaternion(tmpQ.copy(pen.group.quaternion).invert());
-  pen.body.rotation.y = Math.atan2(tmpA.x, tmpA.z) - LOGO_FACE_ANGLE;
+  // 브랜드 면을 카메라로 자동 회전시키지 않고 물체의 고정된 한 면으로 둔다.
+  pen.body.rotation.y = 0.85;
 }
 placePen();
+
+function penAtPointer(clientX, clientY) {
+  setNdc(clientX, clientY);
+  raycaster.setFromCamera(ndc, camera);
+  return !!penHit && raycaster.intersectObject(penHit, false).length > 0;
+}
+
+const swatWorld = new Vector3();
+const swatPrev = Array.from({ length: 7 }, () => new Vector2());
+const swatNow = Array.from({ length: 7 }, () => new Vector2());
+const swatMosquito = new Vector2();
+function projectToScreen(point, out) {
+  swatWorld.copy(point).project(camera);
+  out.set((swatWorld.x + 1) * 0.5 * window.innerWidth, (1 - swatWorld.y) * 0.5 * window.innerHeight);
+  return out;
+}
+function pointSegmentDistance(point, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const lengthSq = dx * dx + dy * dy;
+  if (lengthSq < 0.001) return point.distanceTo(a);
+  const t = clamp(((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSq, 0, 1);
+  return Math.hypot(point.x - (a.x + dx * t), point.y - (a.y + dy * t));
+}
+function checkPenSwat(tipInWater, now) {
+  const clearOfMouth = Math.hypot(pen.control.x, pen.control.z) > MANHOLE_R + 0.18;
+  const hasTarget = mosquitoes.some((mosquito) => mosquito.userData.active);
+  if (state.mode !== 'room' || !state.penDragging || pen.inWater || tipInWater || !clearOfMouth || !hasTarget) {
+    pen.swatReadyAt = Infinity;
+    return;
+  }
+  if (!Number.isFinite(pen.swatReadyAt)) { pen.swatReadyAt = now + 180; return; }
+  if (now < pen.swatReadyAt || pen.controlSpeed < 0.85) return;
+  for (let i = 0; i < swatNow.length; i += 1) {
+    const length = 0.12 + i * 0.65;
+    projectToScreen(swatWorld.copy(pen.prevDir).multiplyScalar(length).add(pen.prevTip), swatPrev[i]);
+    projectToScreen(swatWorld.copy(pen.dir).multiplyScalar(length).add(pen.tip), swatNow[i]);
+  }
+  const threshold = state.pointerType === 'touch' ? 34 : 27;
+  let nearest = null, nearestDistance = threshold;
+  for (const mosquito of mosquitoes) {
+    if (!mosquito.userData.active) continue;
+    projectToScreen(mosquito.position, swatMosquito);
+    let distance = Math.min(
+      pointSegmentDistance(swatMosquito, swatPrev[0], swatPrev[swatPrev.length - 1]),
+      pointSegmentDistance(swatMosquito, swatNow[0], swatNow[swatNow.length - 1]),
+    );
+    for (let i = 0; i < swatNow.length && distance > 0; i += 1) {
+      distance = Math.min(distance, pointSegmentDistance(swatMosquito, swatPrev[i], swatNow[i]));
+    }
+    if (distance < nearestDistance) { nearestDistance = distance; nearest = mosquito; }
+  }
+  if (nearest) catchMosquito(nearest);
+}
 
 /* 볼펜 끝이 어디로 가야 하는지 (수면/바닥/쇠테 넘기) */
 function penTargetFromControl(target) {
@@ -5582,6 +5624,7 @@ function penTargetFromControl(target) {
   return target;
 }
 function updatePen(dt, now) {
+  pen.prevTip.copy(pen.tip); pen.prevDir.copy(pen.dir);
   const held = pen.held;
   // 놓은 직후 구멍 안에 있으면 먼저 위로 뽑아 올린 뒤 제자리로
   const returning = !held && now < pen.returnUntil && Math.hypot(pen.tip.x, pen.tip.z) < MANHOLE_R + 0.4;
@@ -5809,7 +5852,7 @@ function stirWater(dt, now) {
     if (speed > 0.25) {
       waterPulse(cp, speed * dt * 2.2);
       stir.rippleAcc += speed * dt;
-      if (stir.rippleAcc > 0.22) { stir.rippleAcc = 0; spawnRipple(cp.x, cp.z, clamp(speed * 0.5, 0.4, 1.2)); sound.splash(clamp(speed * 0.4, 0.2, 1)); }
+      if (stir.rippleAcc > 0.22) { stir.rippleAcc = 0; spawnRipple(cp.x, cp.z, clamp(speed * 0.5, 0.4, 1.2)); }
     }
     if (speed > 1.6 && Math.random() < dt * speed * 0.8) spawnBubble(cp.x + rand(-0.3, 0.3), cp.z + rand(-0.3, 0.3));
     stir.spawnMeter += (stir.agitation * 0.36 + speed * 0.08) * dt;
@@ -5822,12 +5865,13 @@ function stirWater(dt, now) {
   waterUniforms.swirlAngle.value += stir.swirl * dt;
   waterUniforms.agitation.value = stir.agitation;
   // 소리
-  const level = clamp((pen.held && pen.inWater ? speed * 0.32 : 0) + stir.agitation * 0.12, 0, 1);
+  const level = clamp((pen.held && pen.inWater ? speed * 0.18 : 0) + stir.agitation * 0.045, 0, 1);
   stir.waterLevel = damp(stir.waterLevel, level, 8, dt);
   sound.setWater(stir.waterLevel);
   // 모기 나오기: 거품이 먼저 올라오고 잠시 뒤 수면을 뚫고 나온다
   const active = activeMosquitoes().length;
-  if (stir.spawnMeter >= 1 && active + stir.pending.length < MOSQUITO_MAX && stir.pending.length < 3) {
+  const canEmerge = state.mode === 'room' || state.mode === 'keyboard-stir';
+  if (canEmerge && stir.spawnMeter >= 1 && active + stir.pending.length < MOSQUITO_MAX && stir.pending.length < 3) {
     stir.spawnMeter -= 1;
     const near = pen.held && pen.inWater;
     const a = Math.random() * Math.PI * 2, rr = rand(0.15, 0.85);
@@ -5843,17 +5887,15 @@ function stirWater(dt, now) {
       consumeLarvaNear(p.x, p.z, now);
       spawnMosquito(p.x, p.z, 1);
       stir.lastSpawnAt = now;
-      if (!state.shownCatchHint) { state.shownCatchHint = true; showHint('날아오른 모기를 눌러 잡으세요', 4200); }
+      if (!state.shownCatchHint) { state.shownCatchHint = true; showHint('날아오른 모기를 볼펜으로 쳐서 잡으세요', 5200); }
     }
-  }
-  // 한번 휘저은 뒤에는 가만히 둬도 가끔 한 마리씩 올라온다
-  if (state.hasStirred && now >= state.nextSpontaneousAt && active < 3 && stir.pending.length === 0 && state.mode === 'room') {
-    const a = Math.random() * Math.PI * 2, rr = rand(0.1, 0.8);
-    queueEmergence(Math.cos(a) * rr, Math.sin(a) * rr, now);
-    state.nextSpontaneousAt = now + rand(24000, 40000);
   }
 }
 function queueEmergence(x, z, now) {
+  if (!state.hasStirred) {
+    state.hasStirred = true;
+    hideHint();
+  }
   const n = 3 + Math.floor(Math.random() * 3);
   for (let i = 0; i < n; i += 1) spawnBubble(x, z, i * 120 + rand(0, 80));
   sound.glug();
@@ -5867,31 +5909,38 @@ function beginPenDrag(e) {
   if (!info) return false;
   pen.inWater = info.inWater; pen.held = true;
   pen.controlPrev.copy(pen.control); pen.controlVel.set(0, 0, 0); pen.controlSpeed = 0;
+  pen.swatReadyAt = Infinity;
   state.penDragging = true;
   canvas.classList.add('is-dragging');
-  if (!state.hasStirred && info.inWater) {
-    state.hasStirred = true;
-    state.nextSpontaneousAt = performance.now() + rand(24000, 40000);
-    hideHint();
-  }
   return true;
 }
 function endPenDrag() {
   pen.held = false; state.penDragging = false; pen.controlSpeed = 0; pen.controlVel.set(0, 0, 0);
+  pen.swatReadyAt = Infinity;
   pen.returnUntil = performance.now() + 340;
   pen.returnTarget.set(pen.tip.x, 0.6, pen.tip.z);
   canvas.classList.remove('is-dragging');
 }
+function clearActivePointer() {
+  const pointerId = state.pointerId;
+  if (state.penDragging) endPenDrag();
+  state.tapBook = false;
+  state.pointerId = null;
+  if (pointerId !== null && canvas.hasPointerCapture?.(pointerId)) canvas.releasePointerCapture(pointerId);
+}
 function onCanvasPointerDown(e) {
   if (state.mode !== 'room' || state.pointerId !== null || !e.isPrimary) return;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const wantsBook = bookAtPointer(e.clientX, e.clientY);
+  const wantsPen = !wantsBook && penAtPointer(e.clientX, e.clientY);
+  if (!wantsBook && !wantsPen) return;
   sound.ensure();
   state.pointerId = e.pointerId; state.pointerType = e.pointerType;
   state.pointerStartX = e.clientX; state.pointerStartY = e.clientY;
-  state.tapMosquito = mosquitoAtPointer(e.clientX, e.clientY);
-  state.tapBook = !state.tapMosquito && bookAtPointer(e.clientX, e.clientY);
-  if (!state.tapMosquito && !state.tapBook) {
-    if (!beginPenDrag(e)) { state.pointerId = null; return; }
+  state.tapBook = wantsBook;
+  if (wantsPen && !beginPenDrag(e)) {
+    state.pointerId = null;
+    return;
   }
   canvas.setPointerCapture?.(e.pointerId);
 }
@@ -5900,47 +5949,40 @@ function onCanvasPointerMove(e) {
     const info = controlPointAt(e.clientX, liftedY(e), pen.control);
     if (!info) return;
     pen.inWater = info.inWater;
-    if (!state.hasStirred && info.inWater) {
-      state.hasStirred = true; state.nextSpontaneousAt = performance.now() + rand(24000, 40000); hideHint();
-    }
     return;
   }
-  if (e.pointerId === state.pointerId && (state.tapMosquito || state.tapBook)) {
-    // 모기·다이어리를 누른 채로 길게 끌면 볼펜 드래그로 전환
+  if (e.pointerId === state.pointerId && state.tapBook) {
     const moved = Math.hypot(e.clientX - state.pointerStartX, e.clientY - state.pointerStartY);
-    if (moved > 18) { state.tapMosquito = null; state.tapBook = false; beginPenDrag(e); }
+    if (moved > 18) state.tapBook = false;
     return;
   }
   if (e.pointerType === 'mouse' && state.mode === 'room' && state.pointerId === null) {
-    const m = mosquitoAtPointer(e.clientX, e.clientY);
-    const b = !m && bookAtPointer(e.clientX, e.clientY);
+    const b = bookAtPointer(e.clientX, e.clientY);
+    const p = !b && penAtPointer(e.clientX, e.clientY);
     state.bookHovered = b;
-    canvas.classList.toggle('can-catch', !!m);
+    canvas.classList.toggle('can-grab-pen', p);
     canvas.classList.toggle('can-open-book', b);
   }
 }
 function onCanvasPointerUp(e) {
   if (e.pointerId !== state.pointerId) return;
   const moved = Math.hypot(e.clientX - state.pointerStartX, e.clientY - state.pointerStartY);
-  if (state.tapMosquito && moved < 16) catchMosquito(state.tapMosquito);
-  else if (state.tapBook && moved < 16) { state.pointerId = null; openDiary(); }
-  else if (state.penDragging) endPenDrag();
-  state.tapMosquito = null; state.tapBook = false; state.pointerId = null;
-  canvas.releasePointerCapture?.(e.pointerId);
+  const shouldOpenBook = state.tapBook && moved < 16;
+  clearActivePointer();
+  if (shouldOpenBook) openDiary();
 }
 function onCanvasPointerCancel(e) {
   if (e.pointerId !== state.pointerId) return;
-  if (state.penDragging) endPenDrag();
-  state.tapMosquito = null; state.tapBook = false; state.pointerId = null;
+  clearActivePointer();
 }
 canvas.addEventListener('pointerdown', onCanvasPointerDown);
 canvas.addEventListener('pointermove', onCanvasPointerMove);
 canvas.addEventListener('pointerup', onCanvasPointerUp);
 canvas.addEventListener('pointercancel', onCanvasPointerCancel);
-canvas.addEventListener('lostpointercapture', (e) => { if (e.pointerId === state.pointerId && state.penDragging) onCanvasPointerCancel(e); });
+canvas.addEventListener('lostpointercapture', (e) => { if (e.pointerId === state.pointerId) onCanvasPointerCancel(e); });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('pointerleave', () => {
-  if (!state.penDragging) { state.bookHovered = false; canvas.classList.remove('can-catch', 'can-open-book'); }
+  if (!state.penDragging) { state.bookHovered = false; canvas.classList.remove('can-grab-pen', 'can-open-book'); }
 });
 
 /* 키보드: 스페이스로 한 바퀴 휘젓기 */
@@ -5949,9 +5991,7 @@ function startKeyboardStir() {
   if (state.mode !== 'room' || state.pointerId !== null || pen.held) return;
   sound.ensure();
   state.mode = 'keyboard-stir';
-  pen.held = true; pen.inWater = true; state.hasStirred = true;
-  state.nextSpontaneousAt = performance.now() + rand(24000, 40000);
-  hideHint();
+  pen.held = true; pen.inWater = true;
   keyboardStir = { t: 0, duration: reducedMotion ? 0.5 : 2.2 };
   // 키보드에서는 바로 물속에서 시작
   pen.control.set(0.55, WATER_Y, 0); pen.controlPrev.copy(pen.control);
@@ -6105,9 +6145,17 @@ function catchMosquito(m) {
   killMosquito(m);
   sound.catchHit();
   if (navigator.vibrate) navigator.vibrate(14);
-  if (pen.held) endPenDrag();
-  state.mode = 'transition';
-  setTimeout(() => { state.mode = 'mount-transition'; setSceneInert(true); moveCameraToBook(() => openMountPage(seed)); }, reducedMotion ? 20 : 240);
+  if (state.pointerId !== null) clearActivePointer();
+  else if (pen.held) endPenDrag();
+  state.mode = 'capture';
+  setSceneInert(true);
+  stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
+  canvas.classList.remove('can-grab-pen', 'can-open-book');
+  setTimeout(() => {
+    if (state.mode !== 'capture') return;
+    state.mode = 'mount-transition';
+    moveCameraToBook(() => openMountPage(seed));
+  }, reducedMotion ? 20 : 340);
 }
 function clearMountPage() {
   mountExisting.replaceChildren(); pendingEl.replaceChildren();
@@ -6121,13 +6169,12 @@ function openMountPage(seed) {
   state.pending = { id: makeId(), seed, capturedAt, x: 0.5, y: 0.48, rotation: rand(-14, 14), scale: rand(0.86, 1.14), placed: false, saved: false };
   clearMountPage();
   const img = new Image(); img.alt = '잡은 모기'; img.src = specimenImage(seed);
-  pendingEl.append(img); pendingEl.classList.add('is-wriggling');
+  pendingEl.append(img);
   pendingEl.style.left = '50%'; pendingEl.style.top = '47%'; pendingEl.style.opacity = '.56';
   mountDate.textContent = formatDate(capturedAt); mountDate.dateTime = new Date(capturedAt).toISOString();
   mountExisting.replaceChildren(...pageForNewEntry(capturedAt).map(specimenElement));
   mountHint.textContent = '놓을 곳을 누르세요';
   mountOverlay.classList.add('is-open'); mountOverlay.setAttribute('aria-hidden', 'false');
-  canvas.classList.remove('can-catch');
   sound.book();
   requestAnimationFrame(() => mountPage.focus({ preventScroll: true }));
 }
@@ -6146,10 +6193,19 @@ function placePending(clientX, clientY) {
   tapeRoll.focus({ preventScroll: true });
 }
 mountPage.addEventListener('pointerdown', (e) => {
+  if (state.mode === 'mount-finished') {
+    if (performance.now() >= state.finishReadyAt) finishMount();
+    return;
+  }
   if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0) || e.target.closest('#tapeRoll')) return;
   placePending(e.clientX, e.clientY);
 });
 mountPage.addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && state.mode === 'mount-finished') {
+    e.preventDefault();
+    if (performance.now() >= state.finishReadyAt) finishMount();
+    return;
+  }
   if ((e.key === 'Enter' || e.key === ' ') && state.mode === 'mounting') {
     e.preventDefault();
     const r = mountPage.getBoundingClientRect();
@@ -6167,25 +6223,29 @@ function updateDragTape(clientX, clientY) {
 }
 function applyTape() {
   if (!state.pending || state.pending.saved) return;
-  if (state.tapePointerId !== null && tapeRoll.hasPointerCapture?.(state.tapePointerId)) tapeRoll.releasePointerCapture(state.tapePointerId);
+  const tapePointerId = state.tapePointerId;
   state.mode = 'mount-finished'; state.tapeDragging = false; state.tapePointerId = null;
+  if (tapePointerId !== null && tapeRoll.hasPointerCapture?.(tapePointerId)) tapeRoll.releasePointerCapture(tapePointerId);
   dragTape.classList.remove('is-dragging');
   const angle = rand(-18, 18);
+  const wet = document.createElement('div');
+  wet.className = 'wet-mark';
   const strip = document.createElement('div');
   strip.className = 'tape-strip temporary-tape';
-  strip.style.left = `${state.pending.x * 100}%`; strip.style.top = `${state.pending.y * 100}%`;
-  strip.style.width = 'clamp(76px, 12vw, 130px)'; strip.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
-  mountPage.append(strip);
-  pendingEl.classList.remove('is-wriggling'); pendingEl.classList.add('is-flattened');
+  strip.style.left = '50%'; strip.style.top = '50%'; strip.style.width = '138%';
+  strip.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+  pendingEl.prepend(wet); pendingEl.append(strip);
+  pendingEl.classList.add('is-flattened');
   tapeRoll.classList.remove('is-visible', 'is-nudging');
-  mountHint.textContent = '';
+  mountHint.textContent = '눌러서 방으로 돌아가기';
   sound.tape();
   if (navigator.vibrate) navigator.vibrate([14, 22, 18]);
   state.pending.saved = true;
   entries.push({ id: state.pending.id, seed: state.pending.seed, capturedAt: state.pending.capturedAt, x: state.pending.x, y: state.pending.y, rotation: state.pending.rotation, scale: state.pending.scale, tapeAngle: angle });
   saveEntries();
   state.bookPulseUntil = performance.now() + 1800;
-  setTimeout(finishMount, reducedMotion ? 100 : 950);
+  state.finishReadyAt = performance.now() + 140;
+  requestAnimationFrame(() => mountPage.focus({ preventScroll: true }));
 }
 function finishMount() {
   if (!state.pending?.saved) return;
@@ -6193,15 +6253,29 @@ function finishMount() {
   setSceneInert(false); canvas.focus({ preventScroll: true });
   mountOverlay.classList.remove('is-open'); mountOverlay.setAttribute('aria-hidden', 'true');
   state.pending = null; state.mode = 'room-transition';
+  sound.book();
   setTimeout(() => { if (!state.pending || state.pending.id === id) clearMountPage(); }, 450);
   moveCameraHome(() => {
-    state.mode = 'room'; applyLayout();
+    state.mode = 'room'; applyLayout(); updateBuzz();
     if (!state.shownDiaryHint) { state.shownDiaryHint = true; showHint('다이어리를 누르면 붙여 둔 모기를 다시 볼 수 있습니다', 4600); }
   });
 }
+function cancelMounting() {
+  if (!['mounting', 'taping', 'mount-finished'].includes(state.mode)) return;
+  if (state.pending?.saved) { finishMount(); return; }
+  const tapePointerId = state.tapePointerId;
+  state.tapeDragging = false; state.tapePointerId = null;
+  if (tapePointerId !== null && tapeRoll.hasPointerCapture?.(tapePointerId)) tapeRoll.releasePointerCapture(tapePointerId);
+  mountOverlay.classList.remove('is-open'); mountOverlay.setAttribute('aria-hidden', 'true');
+  state.pending = null; state.mode = 'room-transition';
+  setSceneInert(false); sound.book();
+  moveCameraHome(() => { clearMountPage(); state.mode = 'room'; applyLayout(); updateBuzz(); canvas.focus({ preventScroll: true }); });
+}
 function dropTape(clientX, clientY) {
   if (!state.tapeDragging || !state.pending) return;
-  state.tapeDragging = false; tapeRoll.releasePointerCapture?.(state.tapePointerId); state.tapePointerId = null;
+  const tapePointerId = state.tapePointerId;
+  state.tapeDragging = false; state.tapePointerId = null;
+  if (tapePointerId !== null && tapeRoll.hasPointerCapture?.(tapePointerId)) tapeRoll.releasePointerCapture(tapePointerId);
   dragTape.classList.remove('is-dragging');
   const r = mountPage.getBoundingClientRect();
   const tx = state.pending.x * r.width, ty = state.pending.y * r.height;
@@ -6216,26 +6290,29 @@ tapeRoll.addEventListener('pointerdown', (e) => {
   state.tapeDragging = true; state.tapePointerId = e.pointerId;
   tapeRoll.setPointerCapture?.(e.pointerId); tapeRoll.classList.remove('is-nudging');
   dragTape.classList.add('is-dragging');
-  updateDragTape(e.clientX, e.clientY);
+  updateDragTape(e.clientX, liftedY(e));
 });
-tapeRoll.addEventListener('pointermove', (e) => { if (e.pointerId === state.tapePointerId) updateDragTape(e.clientX, e.clientY); });
-tapeRoll.addEventListener('pointerup', (e) => { if (e.pointerId === state.tapePointerId) dropTape(e.clientX, e.clientY); });
+tapeRoll.addEventListener('pointermove', (e) => { if (e.pointerId === state.tapePointerId) updateDragTape(e.clientX, liftedY(e)); });
+tapeRoll.addEventListener('pointerup', (e) => { if (e.pointerId === state.tapePointerId) dropTape(e.clientX, liftedY(e)); });
 tapeRoll.addEventListener('pointercancel', (e) => {
   if (e.pointerId !== state.tapePointerId) return;
   state.tapeDragging = false; state.tapePointerId = null; dragTape.classList.remove('is-dragging');
 });
 tapeRoll.addEventListener('lostpointercapture', (e) => {
-  if (e.pointerId !== state.tapePointerId || !state.tapeDragging) return;
+  if (e.pointerId !== state.tapePointerId) return;
   state.tapeDragging = false; state.tapePointerId = null; dragTape.classList.remove('is-dragging');
 });
 tapeRoll.addEventListener('keydown', (e) => {
-  if ((e.key === 'Enter' || e.key === ' ') && state.mode === 'taping') { e.preventDefault(); applyTape(); }
+  if ((e.key === 'Enter' || e.key === ' ') && state.mode === 'taping') { e.preventDefault(); e.stopPropagation(); applyTape(); }
 });
+cancelMountButton.addEventListener('click', cancelMounting);
 
 /* ───────────────────────── 다이어리 열고 닫기 ───────────────────────── */
 function openDiary() {
   if (state.mode !== 'room' || pen.held || state.pointerId !== null) return;
   state.mode = 'diary-transition'; setSceneInert(true);
+  state.hasOpenedDiary = true;
+  stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
   state.diaryIndex = Math.max(0, buildPages(entries).length - 1);
   sound.book();
   moveCameraToBook(() => {
@@ -6249,7 +6326,7 @@ function closeDiary() {
   setSceneInert(false); canvas.focus({ preventScroll: true });
   diaryOverlay.classList.remove('is-open'); diaryOverlay.setAttribute('aria-hidden', 'true');
   state.mode = 'room-transition'; sound.book();
-  moveCameraHome(() => { state.mode = 'room'; applyLayout(); });
+  moveCameraHome(() => { state.mode = 'room'; applyLayout(); updateBuzz(); });
 }
 diaryButton.addEventListener('click', () => { sound.ensure(); openDiary(); });
 closeDiaryButton.addEventListener('click', closeDiary);
@@ -6266,7 +6343,8 @@ diaryOverlay.addEventListener('pointerup', (e) => {
 });
 soundButton.addEventListener('click', () => sound.setMuted(!settings.muted));
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && state.mode === 'diary') closeDiary();
+  if (e.key === 'Escape' && ['mounting', 'taping', 'mount-finished'].includes(state.mode)) cancelMounting();
+  else if (e.key === 'Escape' && state.mode === 'diary') closeDiary();
   else if (state.mode === 'diary' && e.key === 'ArrowLeft') turnPage(-1);
   else if (state.mode === 'diary' && e.key === 'ArrowRight') turnPage(1);
 });
@@ -6279,10 +6357,16 @@ window.addEventListener('pagehide', saveEntries);
 /* ───────────────────────── 메인 루프 ───────────────────────── */
 let lastFrame = performance.now();
 let elapsed = 0;
+function sceneCovered() { return ['mounting', 'taping', 'mount-finished', 'diary'].includes(state.mode); }
 function frame() {
   const now = performance.now();
   const dt = Math.min((now - lastFrame) / 1000, 0.05);
   lastFrame = now; elapsed += dt;
+
+  if (sceneCovered()) {
+    requestAnimationFrame(frame);
+    return;
+  }
 
   updateKeyboardStir(dt);
   // 손가락/마우스가 가리키는 수면 지점의 속도
@@ -6295,6 +6379,7 @@ function frame() {
   waterUniforms.time.value = elapsed;
   waterUniforms.pulse.value = Math.max(0, waterUniforms.pulse.value - dt * 0.85);
   const tipInWater = updatePen(dt, now);
+  checkPenSwat(tipInWater, now);
   stirWater(dt, now);
   updateLarvae(dt, now, tipInWater && pen.held, tipInWater ? pen.control : null);
   updateMosquitoes(dt, elapsed, now);
@@ -6302,7 +6387,8 @@ function frame() {
   updateCameraMove(now);
   // 다이어리 표지가 살짝 들림 (가리키거나 방금 붙였을 때)
   const pulse = now < state.bookPulseUntil ? 0.45 + Math.sin(elapsed * 10) * 0.35 : 0;
-  const lift = Math.max(state.bookHovered ? 1 : 0, pulse);
+  const firstOpenCue = entries.length && !state.hasOpenedDiary ? 0.22 + Math.sin(elapsed * 2.4) * 0.08 : 0;
+  const lift = Math.max(state.bookHovered ? 1 : 0, pulse, firstOpenCue);
   diaryCover.position.y = damp(diaryCover.position.y, 0.118 + lift * 0.09, 10, dt);
   diaryCover.rotation.z = damp(diaryCover.rotation.z, lift * 0.14, 10, dt);
   renderer.render(scene, camera);
