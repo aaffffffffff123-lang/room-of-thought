@@ -4718,7 +4718,7 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
         </div>
       </section>
 
-      <p id="sceneHelp" class="sr-only">INPUT 사료통을 집어 맨홀 위에서 좌우로 흔들어 먹이를 넣은 다음, 보이는 볼펜을 직접 잡아 맨홀 속을 휘저으면 모기떼가 날아오릅니다. 날아오른 모기는 눌러서 잡습니다. 다이어리와 책꽂이의 출판물도 열어볼 수 있습니다. 키보드에서는 I 키로 먹이를 넣고, 스페이스바로 맨홀을 휘젓고, M 키로 가장 가까운 모기를 잡고, D 키로 다이어리를 열며, 숫자 1부터 3으로 출판물을 엽니다.</p>
+      <p id="sceneHelp" class="sr-only">INPUT 사료통을 집어 맨홀 위에서 좌우로 흔들어 먹이를 넣은 다음, 보이는 볼펜을 직접 잡아 맨홀 속을 휘저으면 모기떼가 날아오릅니다. 날아오른 모기는 눌러서 잡습니다. 가운데의 사용 중인 다이어리와 책꽂이의 출판물·지난 다이어리를 열어볼 수 있습니다. 키보드에서는 I 키로 먹이를 넣고, 스페이스바로 맨홀을 휘젓고, M 키로 가장 가까운 모기를 잡고, D 키로 사용 중인 다이어리를 열며, 숫자 1부터 3으로 출판물을 엽니다.</p>
       <canvas id="scene" tabindex="0" aria-describedby="sceneHelp" aria-label="가운데 열린 맨홀, 커다란 볼펜, INPUT 사료통, 다이어리와 책꽂이가 놓인 전시장" aria-hidden="true" inert></canvas>
 
       <a id="arcadeFace" href="https://aaffffffffff123-lang.github.io/arcade/" target="_top" aria-label="혐규오락실 — 다른 게임 하러 가기" title="혐규오락실" aria-hidden="true" inert><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24.00 2.84 C27.19 2.93 30.48 3.49 33.44 4.70 C36.39 5.91 39.79 7.65 41.72 10.08 C43.64 12.51 44.41 16.18 44.97 19.28 C45.53 22.39 45.73 25.72 45.08 28.74 C44.42 31.76 43.07 35.11 41.06 37.40 C39.05 39.69 35.87 41.15 33.03 42.47 C30.19 43.79 27.09 45.14 24.00 45.31 C20.91 45.47 17.40 44.72 14.49 43.46 C11.58 42.19 8.30 40.21 6.54 37.72 C4.78 35.22 4.45 31.57 3.93 28.51 C3.41 25.45 2.76 22.23 3.42 19.37 C4.08 16.52 6.10 13.90 7.91 11.36 C9.72 8.82 11.61 5.56 14.29 4.14 C16.97 2.72 20.81 2.75 24.00 2.84 Z" fill="#221D1F"/><g stroke="#EFF1EC" stroke-width="2.2" stroke-linecap="round" fill="none"><path d="M13.2 8.4V17.9"/><path d="M20.4 6.2V16.6"/><path d="M27.6 6.2V16.6"/><path d="M34.6 8.8V18.3"/></g><g fill="#EFF1EC"><ellipse cx="18.1" cy="25.2" rx="2" ry="2.3"/><ellipse cx="29.9" cy="25.2" rx="2" ry="2.3"/></g><path d="M19.9 32.3a4.6 4.6 0 0 0 8.2 0" fill="none" stroke="#EFF1EC" stroke-width="2.3" stroke-linecap="round"/></svg></a>
@@ -4730,6 +4730,11 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
         <button class="sr-only publication-button" type="button" data-publication="0">출판물 제1호 열기</button>
         <button class="sr-only publication-button" type="button" data-publication="1">출판물 제2호 열기</button>
         <button class="sr-only publication-button" type="button" data-publication="2">출판물 제3호 열기</button>
+        <button class="sr-only shelf-diary-button" type="button" data-shelf-diary="0">지난 다이어리 1권 열기</button>
+        <button class="sr-only shelf-diary-button" type="button" data-shelf-diary="1">지난 다이어리 2권 열기</button>
+        <button class="sr-only shelf-diary-button" type="button" data-shelf-diary="2">지난 다이어리 3권 열기</button>
+        <button class="sr-only shelf-diary-button" type="button" data-shelf-diary="3">지난 다이어리 4권 열기</button>
+        <button class="sr-only shelf-diary-button" type="button" data-shelf-diary="4">지난 다이어리 5권 열기</button>
         <button id="soundButton" class="quiet-button sound-button" type="button" aria-pressed="false">소리 끄기</button>
       </nav>
 
@@ -4834,6 +4839,7 @@ const publicationPrevButton = document.querySelector('#publicationPrev');
 const publicationNextButton = document.querySelector('#publicationNext');
 const publicationIndicator = document.querySelector('#publicationIndicator');
 const publicationButtons = [...document.querySelectorAll('.publication-button')];
+const shelfDiaryButtons = [...document.querySelectorAll('.shelf-diary-button')];
 const fallbackEl = document.querySelector('#noscriptFallback');
 
 /* ───────────────────────── 상수 ───────────────────────── */
@@ -4929,12 +4935,13 @@ const state = {
   pointerType: 'mouse',
   pointerStartX: 0, pointerStartY: 0,
   penDragging: false,
-  tapMosquito: null, tapBook: false, tapPublication: null,
-  feedHovered: false, publicationHovered: null,
+  tapMosquito: null, tapBook: false, tapPublication: null, tapShelfDiary: null,
+  feedHovered: false, publicationHovered: null, shelfDiaryHovered: null,
   bookHovered: false, bookPulseUntil: 0,
   pending: null,
   tapeDragging: false, tapePointerId: null, tapeStartX: 0, tapeStartY: 0,
-  diaryIndex: 0, mountPageIndex: 0, publicationIndex: 0, publicationPageIndex: 0,
+  diaryIndex: 0, diarySource: 'current', shelfDiaryIndex: 0,
+  mountPageIndex: 0, publicationIndex: 0, publicationPageIndex: 0,
   hasStirred: false,
   shownCatchHint: false, shownDiaryHint: false,
   hasOpenedDiary: false,
@@ -6580,10 +6587,7 @@ function feedInput() {
   const now = performance.now();
   feed.dragging = false; feed.shakeCount = 0; feed.lastDirection.set(0, 0);
   canvas.classList.remove('is-dragging');
-  if (feed.ready) {
-    feed.wobbleUntil = now + 380; sound.feed();
-    return;
-  }
+  consumeFeedCharge();
   feed.pouring = true; feed.startedAt = now; feed.duration = reducedMotion ? 420 : 1250;
   feed.wobbleUntil = 0; bottlePivot.rotation.z = 0; bottlePivot.updateMatrixWorld(true);
   const mouth = new Vector3(-0.2, 1.48, 0.04)
@@ -6694,7 +6698,7 @@ for (const x of [-1.82, 1.82]) {
   const side = new Mesh(new BoxGeometry(0.14, 2.5, 0.58), shelfWood);
   side.position.set(x, 1.35, .18); side.castShadow = true; publicationShelf.add(side);
 }
-const publicationBooks = [], publicationHits = [], shelfDiaryBooks = [];
+const publicationBooks = [], publicationHits = [], shelfDiaryBooks = [], shelfDiaryHits = [];
 const shelfVolumes = [
   ...PUBLICATIONS.map((def, index) => ({ type: 'publication', def, index, width: [.3, .28, .31][index], height: [1.7, 1.58, 1.74][index] })),
   ...Array.from({ length: 5 }, (_, index) => ({ type: 'diary', index, width: [.25, .28, .3, .26, .28][index], height: [1.55, 1.68, 1.6, 1.72, 1.57][index] })),
@@ -6719,7 +6723,11 @@ for (const volume of shelfVolumes) {
     const hit = new Mesh(new BoxGeometry(volume.width + .07, volume.height + .1, .78), hitMaterial);
     hit.position.z = .03; hit.userData.publicationIndex = volume.index; book.add(hit);
     publicationBooks.push(book); publicationHits.push(hit);
-  } else shelfDiaryBooks.push(book);
+  } else {
+    const hit = new Mesh(new BoxGeometry(volume.width + .07, volume.height + .1, .78), hitMaterial);
+    hit.position.z = .03; hit.userData.shelfDiaryIndex = volume.index; book.add(hit);
+    shelfDiaryBooks.push(book); shelfDiaryHits.push(hit);
+  }
   publicationShelf.add(book);
 }
 scene.add(publicationShelf);
@@ -6840,6 +6848,12 @@ function publicationAtPointer(clientX, clientY) {
   raycaster.setFromCamera(ndc, camera);
   const hit = raycaster.intersectObjects(publicationHits, false)[0];
   return hit ? hit.object.userData.publicationIndex : null;
+}
+function shelfDiaryAtPointer(clientX, clientY) {
+  setNdc(clientX, clientY);
+  raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObjects(shelfDiaryHits, false)[0];
+  return hit ? hit.object.userData.shelfDiaryIndex : null;
 }
 
 /* ───────────────────────── 안내 문구 ───────────────────────── */
@@ -7061,6 +7075,7 @@ function clearActivePointer() {
   state.tapMosquito = null;
   state.tapBook = false;
   state.tapPublication = null;
+  state.tapShelfDiary = null;
   state.pointerId = null;
   if (pointerId !== null && canvas.hasPointerCapture?.(pointerId)) canvas.releasePointerCapture(pointerId);
 }
@@ -7070,13 +7085,14 @@ function onCanvasPointerDown(e) {
   const wantsFeed = feedAtPointer(e.clientX, e.clientY);
   const wantsBook = !wantsFeed && bookAtPointer(e.clientX, e.clientY);
   const wantsPublication = !wantsFeed && !wantsBook ? publicationAtPointer(e.clientX, e.clientY) : null;
-  const wantsMosquito = !wantsFeed && !wantsBook && wantsPublication === null ? mosquitoAtPointer(e.clientX, e.clientY, e.pointerType) : null;
-  const wantsPen = !wantsFeed && !wantsBook && wantsPublication === null && !wantsMosquito && penAtPointer(e.clientX, e.clientY);
-  if (!wantsMosquito && !wantsFeed && !wantsBook && wantsPublication === null && !wantsPen) return;
+  const wantsShelfDiary = !wantsFeed && !wantsBook && wantsPublication === null ? shelfDiaryAtPointer(e.clientX, e.clientY) : null;
+  const wantsMosquito = !wantsFeed && !wantsBook && wantsPublication === null && wantsShelfDiary === null ? mosquitoAtPointer(e.clientX, e.clientY, e.pointerType) : null;
+  const wantsPen = !wantsFeed && !wantsBook && wantsPublication === null && wantsShelfDiary === null && !wantsMosquito && penAtPointer(e.clientX, e.clientY);
+  if (!wantsMosquito && !wantsFeed && !wantsBook && wantsPublication === null && wantsShelfDiary === null && !wantsPen) return;
   sound.ensure();
   state.pointerId = e.pointerId; state.pointerType = e.pointerType;
   state.pointerStartX = e.clientX; state.pointerStartY = e.clientY;
-  state.tapMosquito = wantsMosquito; state.tapBook = wantsBook; state.tapPublication = wantsPublication;
+  state.tapMosquito = wantsMosquito; state.tapBook = wantsBook; state.tapPublication = wantsPublication; state.tapShelfDiary = wantsShelfDiary;
   if (wantsFeed && !beginFeedDrag(e)) {
     state.pointerId = null;
     return;
@@ -7095,23 +7111,25 @@ function onCanvasPointerMove(e) {
     pen.inWater = info.inWater;
     return;
   }
-  if (e.pointerId === state.pointerId && (state.tapMosquito || state.tapBook || state.tapPublication !== null)) {
+  if (e.pointerId === state.pointerId && (state.tapMosquito || state.tapBook || state.tapPublication !== null || state.tapShelfDiary !== null)) {
     const moved = Math.hypot(e.clientX - state.pointerStartX, e.clientY - state.pointerStartY);
-    if (moved > 18) { state.tapMosquito = null; state.tapBook = false; state.tapPublication = null; }
+    if (moved > 18) { state.tapMosquito = null; state.tapBook = false; state.tapPublication = null; state.tapShelfDiary = null; }
     return;
   }
   if (e.pointerType === 'mouse' && state.mode === 'room' && state.pointerId === null) {
     const f = feedAtPointer(e.clientX, e.clientY);
     const b = !f && bookAtPointer(e.clientX, e.clientY);
     const publication = !f && !b ? publicationAtPointer(e.clientX, e.clientY) : null;
-    const m = !f && !b && publication === null ? mosquitoAtPointer(e.clientX, e.clientY, 'mouse') : null;
-    const p = !f && !b && publication === null && !m && penAtPointer(e.clientX, e.clientY);
+    const shelfDiary = !f && !b && publication === null ? shelfDiaryAtPointer(e.clientX, e.clientY) : null;
+    const m = !f && !b && publication === null && shelfDiary === null ? mosquitoAtPointer(e.clientX, e.clientY, 'mouse') : null;
+    const p = !f && !b && publication === null && shelfDiary === null && !m && penAtPointer(e.clientX, e.clientY);
     state.feedHovered = f;
     state.bookHovered = b;
     state.publicationHovered = publication;
+    state.shelfDiaryHovered = shelfDiary;
     canvas.classList.toggle('can-catch', !!m);
     canvas.classList.toggle('can-grab-pen', p);
-    canvas.classList.toggle('can-open-book', b || publication !== null);
+    canvas.classList.toggle('can-open-book', b || publication !== null || shelfDiary !== null);
     canvas.classList.toggle('can-use-object', f);
   }
 }
@@ -7121,10 +7139,12 @@ function onCanvasPointerUp(e) {
   const tappedMosquito = moved < 18 ? state.tapMosquito : null;
   const shouldOpenBook = state.tapBook && moved < 16;
   const publicationIndex = moved < 16 ? state.tapPublication : null;
+  const shelfDiaryIndex = moved < 16 ? state.tapShelfDiary : null;
   clearActivePointer();
   if (tappedMosquito) catchMosquito(tappedMosquito);
   else if (shouldOpenBook) openDiary();
   else if (publicationIndex !== null) openPublication(publicationIndex);
+  else if (shelfDiaryIndex !== null) openShelfDiary(shelfDiaryIndex);
 }
 function onCanvasPointerCancel(e) {
   if (e.pointerId !== state.pointerId) return;
@@ -7138,7 +7158,7 @@ canvas.addEventListener('lostpointercapture', (e) => { if (e.pointerId === state
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('pointerleave', () => {
   if (!state.penDragging && !feed.dragging) {
-    state.feedHovered = false; state.bookHovered = false; state.publicationHovered = null;
+    state.feedHovered = false; state.bookHovered = false; state.publicationHovered = null; state.shelfDiaryHovered = null;
     canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book', 'can-use-object');
   }
 });
@@ -7324,9 +7344,9 @@ const DIARY_ARCHIVE_SPOTS = [
   [.19, .48], [.4, .46], [.64, .49], [.84, .47],
   [.16, .74], [.38, .76], [.62, .73], [.83, .77],
 ];
-function diaryArchiveSpecimens(pageIndex, actualCount = 0) {
-  const count = Math.max(0, DIARY_ARCHIVE_COUNT - Math.min(DIARY_ARCHIVE_COUNT, actualCount));
-  const rnd = seededRandom(410000 + pageIndex * 131);
+function diaryArchiveSpecimens(pageIndex, archiveDiaryIndex = 0) {
+  const count = DIARY_ARCHIVE_COUNT;
+  const rnd = seededRandom(410000 + archiveDiaryIndex * 17011 + pageIndex * 131);
   const specimens = [];
   for (let i = 0; i < count; i += 1) {
     const spot = DIARY_ARCHIVE_SPOTS[i];
@@ -7348,7 +7368,7 @@ function diaryArchiveSpecimens(pageIndex, actualCount = 0) {
   }
   return specimens;
 }
-function renderPage(el, page, pageIndex) {
+function renderPage(el, page, pageIndex, archiveDiaryIndex = null) {
   el.replaceChildren();
   const title = document.createElement('p');
   title.className = `page-theme${pageIndex % 2 ? ' is-right' : ''}`;
@@ -7360,30 +7380,36 @@ function renderPage(el, page, pageIndex) {
   else date.textContent = `p. ${String(pageIndex + 1).padStart(3, '0')}`;
   el.append(date);
   const actual = page?.entries || [];
-  el.append(...diaryArchiveSpecimens(pageIndex, actual.length));
+  if (archiveDiaryIndex !== null) el.append(...diaryArchiveSpecimens(pageIndex, archiveDiaryIndex));
   for (const e of actual) el.append(specimenElement(e));
 }
 function isNarrow() { return window.matchMedia('(max-width: 680px)').matches; }
+function visibleDiaryPages() {
+  return state.diarySource === 'archive'
+    ? Array.from({ length: DIARY_PAGE_COUNT }, (_, pageIndex) => ({ pageIndex, key: null, date: null, entries: [] }))
+    : buildPages(entries);
+}
 function renderDiary() {
-  const pages = buildPages(entries);
+  const pages = visibleDiaryPages();
+  const archiveDiaryIndex = state.diarySource === 'archive' ? state.shelfDiaryIndex : null;
   const last = pages.length - 1;
   if (isNarrow()) {
     state.diaryIndex = clamp(state.diaryIndex, 0, last);
-    renderPage(leftPage, pages[state.diaryIndex], state.diaryIndex); rightPage.replaceChildren();
+    renderPage(leftPage, pages[state.diaryIndex], state.diaryIndex, archiveDiaryIndex); rightPage.replaceChildren();
     pageIndicator.textContent = `${state.diaryIndex + 1} / ${pages.length}`;
     prevButton.disabled = state.diaryIndex <= 0; nextButton.disabled = state.diaryIndex >= last;
   } else {
     const lastSpread = Math.floor(last / 2) * 2;
     const left = clamp(Math.floor(state.diaryIndex / 2) * 2, 0, lastSpread);
     state.diaryIndex = left;
-    renderPage(leftPage, pages[left], left); renderPage(rightPage, pages[left + 1], left + 1);
+    renderPage(leftPage, pages[left], left, archiveDiaryIndex); renderPage(rightPage, pages[left + 1], left + 1, archiveDiaryIndex);
     const total = pages.length + (pages.length % 2);
     pageIndicator.textContent = `${left + 1}–${left + 2} / ${total}`;
     prevButton.disabled = left <= 0; nextButton.disabled = left >= lastSpread;
   }
 }
 function turnPage(dir) {
-  const pages = buildPages(entries);
+  const pages = visibleDiaryPages();
   const step = isNarrow() ? 1 : 2;
   const maxIndex = isNarrow() ? pages.length - 1 : Math.floor((pages.length - 1) / 2) * 2;
   const next = clamp(state.diaryIndex + dir * step, 0, maxIndex);
@@ -7406,7 +7432,7 @@ function catchMosquito(m) {
   state.mode = 'capture';
   setSceneInert(true);
   stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
-  state.feedHovered = false; state.bookHovered = false; state.publicationHovered = null;
+  state.feedHovered = false; state.bookHovered = false; state.publicationHovered = null; state.shelfDiaryHovered = null;
   canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book', 'can-use-object');
   setTimeout(() => {
     if (state.mode !== 'capture') return;
@@ -7432,7 +7458,7 @@ function renderMountPage() {
   } else {
     mountDate.textContent = `p. ${String(state.mountPageIndex + 1).padStart(3, '0')}`; mountDate.removeAttribute('datetime');
   }
-  mountExisting.replaceChildren(...diaryArchiveSpecimens(state.mountPageIndex, page.entries.length), ...page.entries.map(specimenElement));
+  mountExisting.replaceChildren(...page.entries.map(specimenElement));
   mountPageIndicator.textContent = `${state.mountPageIndex + 1} / ${pages.length}`;
   const locked = state.mode === 'taping';
   mountPrevButton.disabled = locked || state.mountPageIndex <= 0;
@@ -7659,7 +7685,7 @@ function turnPublicationPage(dir) {
 function openPublication(index) {
   if (state.mode !== 'room' || pen.held || state.pointerId !== null || feed.pouring || !PUBLICATIONS[index]) return;
   state.publicationIndex = index; state.publicationPageIndex = 0; state.mode = 'publication'; setSceneInert(true);
-  state.publicationHovered = null;
+  state.publicationHovered = null; state.shelfDiaryHovered = null;
   canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book', 'can-use-object');
   stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
   renderPublication(index); sound.book();
@@ -7684,6 +7710,8 @@ publicationOverlay.addEventListener('pointerdown', (e) => { if (e.target === pub
 function openDiary() {
   if (state.mode !== 'room' || pen.held || state.pointerId !== null || feed.pouring) return;
   state.mode = 'diary-transition'; setSceneInert(true);
+  state.diarySource = 'current';
+  diaryOverlay.setAttribute('aria-label', '사용 중인 다이어리');
   state.hasOpenedDiary = true;
   stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
   state.diaryIndex = lastOccupiedDiaryPage();
@@ -7694,14 +7722,36 @@ function openDiary() {
     diaryOverlay.focus({ preventScroll: true });
   });
 }
+function openShelfDiary(index) {
+  if (state.mode !== 'room' || pen.held || state.pointerId !== null || feed.pouring || index < 0 || index >= shelfDiaryBooks.length) return;
+  state.diarySource = 'archive'; state.shelfDiaryIndex = index; state.diaryIndex = 0;
+  state.mode = 'diary'; setSceneInert(true);
+  state.shelfDiaryHovered = null;
+  canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book', 'can-use-object');
+  stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
+  diaryOverlay.setAttribute('aria-label', `지난 다이어리 ${index + 1}권`);
+  renderDiary(); sound.book();
+  diaryOverlay.classList.add('is-open'); diaryOverlay.setAttribute('aria-hidden', 'false');
+  diaryOverlay.focus({ preventScroll: true });
+}
 function closeDiary() {
   if (state.mode !== 'diary') return;
+  const fromArchive = state.diarySource === 'archive';
   setSceneInert(false); canvas.focus({ preventScroll: true });
   diaryOverlay.classList.remove('is-open'); diaryOverlay.setAttribute('aria-hidden', 'true');
-  state.mode = 'room-transition'; sound.book();
-  moveCameraHome(() => { state.mode = 'room'; applyLayout(); updateBuzz(); });
+  diaryOverlay.setAttribute('aria-label', '다이어리');
+  sound.book();
+  if (fromArchive) {
+    state.mode = 'room'; applyLayout(); updateBuzz();
+  } else {
+    state.mode = 'room-transition';
+    moveCameraHome(() => { state.mode = 'room'; applyLayout(); updateBuzz(); });
+  }
 }
 diaryButton.addEventListener('click', () => { sound.ensure(); openDiary(); });
+shelfDiaryButtons.forEach((button) => button.addEventListener('click', () => {
+  sound.ensure(); openShelfDiary(Number(button.dataset.shelfDiary));
+}));
 closeDiaryButton.addEventListener('click', closeDiary);
 prevButton.addEventListener('click', () => turnPage(-1));
 nextButton.addEventListener('click', () => turnPage(1));
@@ -7783,6 +7833,11 @@ function frame() {
     const hovered = state.publicationHovered === index ? 1 : 0;
     book.position.z = damp(book.position.z, book.userData.restZ + hovered * .1, 12, dt);
     book.rotation.z = damp(book.rotation.z, hovered * (index === 1 ? -.025 : .025), 12, dt);
+  });
+  shelfDiaryBooks.forEach((book, index) => {
+    const hovered = state.shelfDiaryHovered === index ? 1 : 0;
+    book.position.z = damp(book.position.z, book.userData.restZ + hovered * .1, 12, dt);
+    book.rotation.z = damp(book.rotation.z, hovered * (index % 2 ? -.025 : .025), 12, dt);
   });
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
