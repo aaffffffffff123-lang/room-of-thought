@@ -4464,6 +4464,7 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
   box-shadow: 0 35px 90px rgba(0, 0, 0, .4), 0 7px 18px rgba(0, 0, 0, .25);
   transform: rotateX(2deg) rotate(-.35deg) scale(.96);
   transition: transform .4s cubic-bezier(.2, .85, .28, 1);
+  perspective: 1600px; transform-style: preserve-3d;
 }
 .mounting-book { width: min(88vw, 560px); }
 .overlay.is-open .book-shell { transform: rotateX(0) rotate(-.35deg) scale(1); }
@@ -4483,7 +4484,10 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
     repeating-linear-gradient(0deg, rgba(63, 58, 46, .022) 0 1px, transparent 1px 4px),
     #efe9da;
   box-shadow: inset 0 0 28px rgba(73, 61, 40, .12);
+  backface-visibility: hidden; transform-style: preserve-3d;
 }
+.paper.is-page-turning { z-index: 7; will-change: transform, filter, box-shadow; pointer-events: none; }
+.overlay.is-page-turning .page-controls button { pointer-events: none; }
 .mount-page { left: 2.2%; right: 2.2%; cursor: copy; }
 .diary-page { width: 46.8%; }
 #leftPage { left: 2.2%; }
@@ -4927,7 +4931,7 @@ const specimenImageCache = new Map();
 
 /* ───────────────────────── 상태 ───────────────────────── */
 const state = {
-  mode: 'room',              // room | keyboard-stir | capture | mount-transition | mounting | taping | mount-finished | diary-transition | diary | room-transition
+  mode: 'room',              // room | keyboard-stir | capture | mount-transition | mounting | taping | mount-finished | shelf-book-transition | diary-transition | diary | publication | room-transition
   pointerId: null,
   pointerType: 'mouse',
   pointerStartX: 0, pointerStartY: 0,
@@ -4939,6 +4943,7 @@ const state = {
   tapeDragging: false, tapePointerId: null, tapeStartX: 0, tapeStartY: 0,
   diaryIndex: 0, diarySource: 'current', shelfDiaryIndex: 0,
   mountPageIndex: 0, publicationIndex: 0, publicationPageIndex: 0,
+  shelfBookTransition: null, shelfBookHeld: null,
   hasStirred: false,
   shownCatchHint: false, shownDiaryHint: false,
   hasOpenedDiary: false,
@@ -6721,6 +6726,7 @@ for (const volume of shelfVolumes) {
   const number = diary ? String(volume.index + 1).padStart(2, '0') : '';
   const book = new Group();
   book.position.set(x, .24 + volume.height / 2, .36); book.userData.restZ = .36;
+  book.userData.restY = book.position.y;
   const block = new Mesh(new BoxGeometry(volume.width, volume.height, .66), new MeshStandardMaterial({ color, roughness: .72 }));
   block.castShadow = true; block.receiveShadow = true; book.add(block);
   const spineArt = new Mesh(new PlaneGeometry(volume.width - .035, volume.height - .08), new MeshStandardMaterial({ map: makeBookSpineTexture(color, ink, label, number, diary), roughness: .78 }));
@@ -7498,13 +7504,96 @@ function renderDiary() {
     prevButton.disabled = left <= 0; nextButton.disabled = left >= lastSpread;
   }
 }
+
+/* 종이가 수직으로 접히는 지점에서 내용을 바꿔 앞·뒤 방향이 느껴지게 한다. */
+const pageTurnState = { busy: false, serial: 0, animations: new Set(), elements: new Set(), overlay: null };
+function clearPageTurnElement(el) {
+  if (!el) return;
+  el.classList.remove('is-page-turning');
+  el.style.removeProperty('transform-origin');
+}
+function finishPageTurn(serial) {
+  if (serial !== pageTurnState.serial) return;
+  for (const animation of pageTurnState.animations) animation.cancel();
+  for (const el of pageTurnState.elements) clearPageTurnElement(el);
+  pageTurnState.animations.clear(); pageTurnState.elements.clear();
+  pageTurnState.overlay?.classList.remove('is-page-turning');
+  pageTurnState.overlay?.removeAttribute('aria-busy');
+  pageTurnState.overlay = null; pageTurnState.busy = false;
+}
+function cancelPageTurn() {
+  if (!pageTurnState.busy && !pageTurnState.animations.size && !pageTurnState.elements.size) return;
+  pageTurnState.serial += 1;
+  for (const animation of pageTurnState.animations) animation.cancel();
+  for (const el of pageTurnState.elements) clearPageTurnElement(el);
+  pageTurnState.animations.clear(); pageTurnState.elements.clear();
+  pageTurnState.overlay?.classList.remove('is-page-turning');
+  pageTurnState.overlay?.removeAttribute('aria-busy');
+  pageTurnState.overlay = null; pageTurnState.busy = false;
+}
+async function animatePageHalf(el, fromAngle, toAngle, origin, duration, easing) {
+  el.classList.add('is-page-turning'); el.style.transformOrigin = origin;
+  pageTurnState.elements.add(el);
+  const shadowX = toAngle < fromAngle ? -18 : 18;
+  const animation = el.animate([
+    {
+      transform: `rotateY(${fromAngle}deg)`, filter: fromAngle === 0 ? 'brightness(1)' : 'brightness(.74)',
+      boxShadow: 'inset 0 0 28px rgba(73, 61, 40, .12), 0 0 0 rgba(38, 29, 18, 0)',
+    },
+    {
+      transform: `rotateY(${toAngle}deg)`, filter: toAngle === 0 ? 'brightness(1)' : 'brightness(.7)',
+      boxShadow: `inset 0 0 28px rgba(73, 61, 40, .12), ${shadowX}px 8px 24px rgba(38, 29, 18, .28)`,
+    },
+  ], { duration, easing, fill: 'both' });
+  pageTurnState.animations.add(animation);
+  try { await animation.finished; } catch {}
+  pageTurnState.animations.delete(animation);
+  return animation;
+}
+function playPageTurn({ overlay, outgoing, incoming, direction, commit }) {
+  if (pageTurnState.busy) return false;
+  sound.paper();
+  if (reducedMotion || typeof outgoing?.animate !== 'function' || typeof incoming?.animate !== 'function') {
+    commit(); return true;
+  }
+  const serial = ++pageTurnState.serial;
+  const outAngle = direction > 0 ? -88 : 88;
+  const inAngle = -outAngle;
+  const outOrigin = direction > 0 ? 'left center' : 'right center';
+  const inOrigin = direction > 0 ? 'right center' : 'left center';
+  pageTurnState.busy = true; pageTurnState.overlay = overlay;
+  overlay.classList.add('is-page-turning'); overlay.setAttribute('aria-busy', 'true');
+  (async () => {
+    try {
+      const outward = await animatePageHalf(outgoing, 0, outAngle, outOrigin, 190, 'cubic-bezier(.45,.05,.55,.95)');
+      if (serial !== pageTurnState.serial) return;
+      outward.cancel(); clearPageTurnElement(outgoing); pageTurnState.elements.delete(outgoing);
+      commit();
+      if (serial !== pageTurnState.serial) return;
+      const inward = await animatePageHalf(incoming, inAngle, 0, inOrigin, 230, 'cubic-bezier(.2,.75,.25,1)');
+      if (serial !== pageTurnState.serial) return;
+      inward.cancel();
+    } finally {
+      finishPageTurn(serial);
+    }
+  })();
+  return true;
+}
 function turnPage(dir) {
+  if (state.mode !== 'diary' || pageTurnState.busy) return;
   const pages = visibleDiaryPages();
-  const step = isNarrow() ? 1 : 2;
-  const maxIndex = isNarrow() ? pages.length - 1 : Math.floor((pages.length - 1) / 2) * 2;
+  const narrow = isNarrow();
+  const step = narrow ? 1 : 2;
+  const maxIndex = narrow ? pages.length - 1 : Math.floor((pages.length - 1) / 2) * 2;
   const next = clamp(state.diaryIndex + dir * step, 0, maxIndex);
   if (next === state.diaryIndex) return;
-  state.diaryIndex = next; sound.paper(); renderDiary();
+  playPageTurn({
+    overlay: diaryOverlay,
+    outgoing: narrow ? leftPage : (dir > 0 ? rightPage : leftPage),
+    incoming: narrow ? leftPage : (dir > 0 ? leftPage : rightPage),
+    direction: dir,
+    commit: () => { state.diaryIndex = next; renderDiary(); },
+  });
 }
 
 /* ───────────────────────── 잡기 → 붙이기 ───────────────────────── */
@@ -7557,14 +7646,20 @@ function renderMountPage() {
   else if (state.pending) pendingEl.style.display = '';
 }
 function turnMountPage(dir) {
-  if (!['mounting', 'mount-finished'].includes(state.mode)) return;
+  if (!['mounting', 'mount-finished'].includes(state.mode) || pageTurnState.busy) return;
   const pages = buildPages(entries);
   const next = clamp(state.mountPageIndex + dir, 0, pages.length - 1);
   if (next === state.mountPageIndex) return;
-  state.mountPageIndex = next; sound.paper(); renderMountPage();
-  if (state.mode === 'mounting') mountHint.textContent = pages[next].entries.length >= PER_PAGE ? '이 페이지는 가득 찼습니다' : '놓을 곳을 누르세요';
+  playPageTurn({
+    overlay: mountOverlay, outgoing: mountPage, incoming: mountPage, direction: dir,
+    commit: () => {
+      state.mountPageIndex = next; renderMountPage();
+      if (state.mode === 'mounting') mountHint.textContent = pages[next].entries.length >= PER_PAGE ? '이 페이지는 가득 찼습니다' : '놓을 곳을 누르세요';
+    },
+  });
 }
 function openMountPage(seed) {
+  cancelPageTurn();
   state.mode = 'mounting';
   const capturedAt = Date.now();
   state.pending = { id: makeId(), seed, capturedAt, x: 0.5, y: 0.48, rotation: rand(-14, 14), scale: rand(0.86, 1.14), placed: false, saved: false };
@@ -7580,7 +7675,7 @@ function openMountPage(seed) {
   requestAnimationFrame(() => mountPage.focus({ preventScroll: true }));
 }
 function placePending(clientX, clientY) {
-  if (state.mode !== 'mounting' || !state.pending || state.pending.placed) return;
+  if (state.mode !== 'mounting' || pageTurnState.busy || !state.pending || state.pending.placed) return;
   const page = buildPages(entries)[state.mountPageIndex];
   if (page.entries.length >= PER_PAGE) { mountHint.textContent = '이 페이지는 가득 찼습니다'; return; }
   const r = mountPage.getBoundingClientRect();
@@ -7643,11 +7738,12 @@ function applyTape() {
   state.bookPulseUntil = performance.now() + 1800;
   mountPrevButton.disabled = state.mountPageIndex <= 0;
   mountNextButton.disabled = state.mountPageIndex >= buildPages(entries).length - 1;
-  setTimeout(() => { if (state.mode === 'mount-finished' && state.pending?.saved) renderMountPage(); }, reducedMotion ? 30 : 520);
+  setTimeout(() => { if (state.mode === 'mount-finished' && state.pending?.saved && !pageTurnState.busy) renderMountPage(); }, reducedMotion ? 30 : 520);
   requestAnimationFrame(() => mountPage.focus({ preventScroll: true }));
 }
 function finishMount() {
   if (!state.pending?.saved) return;
+  cancelPageTurn();
   const id = state.pending.id;
   setSceneInert(false); canvas.focus({ preventScroll: true });
   mountOverlay.classList.remove('is-open'); mountOverlay.setAttribute('aria-hidden', 'true');
@@ -7661,6 +7757,7 @@ function finishMount() {
 }
 function cancelMounting() {
   if (!['mounting', 'taping', 'mount-finished'].includes(state.mode)) return;
+  cancelPageTurn();
   if (state.pending?.saved) { finishMount(); return; }
   const tapePointerId = state.tapePointerId;
   state.tapeDragging = false; state.tapePointerId = null;
@@ -7724,6 +7821,72 @@ cancelMountButton.addEventListener('click', cancelMounting);
 mountPrevButton.addEventListener('click', () => turnMountPage(-1));
 mountNextButton.addEventListener('click', () => turnMountPage(1));
 
+/* 책꽂이의 책은 먼저 선반 밖으로 빠진 뒤 몸을 돌리고, 그 다음 열람 화면으로 이어진다. */
+function resetShelfBookTransform(book) {
+  if (!book) return;
+  book.position.y = book.userData.restY;
+  book.position.z = book.userData.restZ;
+  book.rotation.y = 0; book.rotation.z = 0;
+  book.scale.setScalar(1); book.visible = true;
+}
+function restoreHeldShelfBook() {
+  const held = state.shelfBookHeld;
+  if (!held) return;
+  resetShelfBookTransform(held.book);
+  state.shelfBookHeld = null;
+}
+function completeShelfBookOpen() {
+  const transition = state.shelfBookTransition;
+  if (!transition || state.mode !== 'shelf-book-transition') return;
+  state.shelfBookTransition = null;
+  transition.book.visible = false;
+  state.shelfBookHeld = { book: transition.book, kind: transition.kind, index: transition.index };
+  renderer.render(scene, camera);
+  if (transition.kind === 'publication') showPublication(transition.index);
+  else showShelfDiary(transition.index);
+}
+function cancelShelfBookOpen() {
+  const transition = state.shelfBookTransition;
+  if (!transition || state.mode !== 'shelf-book-transition') return;
+  state.shelfBookTransition = null;
+  resetShelfBookTransform(transition.book);
+  state.mode = 'room'; setSceneInert(false); applyLayout(); updateBuzz();
+  canvas.focus({ preventScroll: true });
+}
+function beginShelfBookOpen(kind, index) {
+  if (state.mode !== 'room' || pen.held || state.pointerId !== null || feed.pouring) return;
+  const book = kind === 'publication' ? publicationBooks[index] : shelfDiaryBooks[index];
+  if (!book || (kind === 'publication' && !PUBLICATIONS[index])) return;
+  restoreHeldShelfBook();
+  state.mode = 'shelf-book-transition'; setSceneInert(true);
+  state.publicationHovered = null; state.shelfDiaryHovered = null;
+  canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book', 'can-use-object');
+  stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0); sound.book();
+  const turnSign = book.position.x < 0 ? -1 : 1;
+  state.shelfBookTransition = {
+    kind, index, book, turnSign, startedAt: performance.now(), duration: 680,
+    startY: book.position.y, startZ: book.position.z,
+    startRotationY: book.rotation.y, startRotationZ: book.rotation.z,
+  };
+  if (reducedMotion) completeShelfBookOpen();
+}
+function updateShelfBookOpen(now) {
+  const transition = state.shelfBookTransition;
+  if (!transition || state.mode !== 'shelf-book-transition') return;
+  const p = clamp((now - transition.startedAt) / transition.duration, 0, 1);
+  const pullPhase = clamp(p / .58, 0, 1);
+  const pull = 1 - Math.pow(1 - pullPhase, 3);
+  const turnPhase = clamp((p - .28) / .72, 0, 1);
+  const turn = turnPhase * turnPhase * (3 - 2 * turnPhase);
+  const book = transition.book;
+  book.position.z = lerp(transition.startZ, book.userData.restZ + .98, pull);
+  book.position.y = lerp(transition.startY, book.userData.restY + .07, turn) + Math.sin(p * Math.PI) * .035;
+  book.rotation.y = lerp(transition.startRotationY, transition.turnSign * .98, turn);
+  book.rotation.z = lerp(transition.startRotationZ, transition.turnSign * -.035, turn);
+  book.scale.setScalar(1 + turn * .045);
+  if (p >= 1) completeShelfBookOpen();
+}
+
 /* ───────────────────────── 출판물 열고 닫기 ───────────────────────── */
 function publicationSpecimenElement(def, index, pageIndex, specimenIndex, spot) {
   const layoutSeed = def.seed + pageIndex * 1201 + specimenIndex * 97;
@@ -7758,23 +7921,28 @@ function renderPublication(index) {
   publicationPage.setAttribute('aria-label', `모기 표본이 붙은 출판물 ${state.publicationPageIndex + 1}쪽`);
 }
 function turnPublicationPage(dir) {
-  if (state.mode !== 'publication') return;
+  if (state.mode !== 'publication' || pageTurnState.busy) return;
   const next = clamp(state.publicationPageIndex + dir, 0, PUBLICATION_PAGE_COUNT - 1);
   if (next === state.publicationPageIndex) return;
-  state.publicationPageIndex = next; sound.paper(); renderPublication(state.publicationIndex);
+  playPageTurn({
+    overlay: publicationOverlay, outgoing: publicationPage, incoming: publicationPage, direction: dir,
+    commit: () => { state.publicationPageIndex = next; renderPublication(state.publicationIndex); },
+  });
 }
-function openPublication(index) {
-  if (state.mode !== 'room' || pen.held || state.pointerId !== null || feed.pouring || !PUBLICATIONS[index]) return;
+function showPublication(index) {
+  cancelPageTurn();
   state.publicationIndex = index; state.publicationPageIndex = 0; state.mode = 'publication'; setSceneInert(true);
   state.publicationHovered = null; state.shelfDiaryHovered = null;
   canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book', 'can-use-object');
   stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
-  renderPublication(index); sound.book();
+  renderPublication(index);
   publicationOverlay.classList.add('is-open'); publicationOverlay.setAttribute('aria-hidden', 'false');
   publicationOverlay.focus({ preventScroll: true });
 }
+function openPublication(index) { beginShelfBookOpen('publication', index); }
 function closePublication() {
   if (state.mode !== 'publication') return;
+  cancelPageTurn(); restoreHeldShelfBook();
   publicationOverlay.classList.remove('is-open'); publicationOverlay.setAttribute('aria-hidden', 'true');
   state.mode = 'room'; setSceneInert(false); applyLayout(); updateBuzz(); sound.book();
   canvas.focus({ preventScroll: true });
@@ -7804,20 +7972,26 @@ function openDiary() {
   });
 }
 function openShelfDiary(index) {
-  if (state.mode !== 'room' || pen.held || state.pointerId !== null || feed.pouring || index < 0 || index >= shelfDiaryBooks.length) return;
+  if (index < 0 || index >= shelfDiaryBooks.length) return;
+  beginShelfBookOpen('diary', index);
+}
+function showShelfDiary(index) {
+  cancelPageTurn();
   state.diarySource = 'archive'; state.shelfDiaryIndex = index; state.diaryIndex = 0;
   state.mode = 'diary'; setSceneInert(true);
   state.shelfDiaryHovered = null;
   canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book', 'can-use-object');
   stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
   diaryOverlay.setAttribute('aria-label', `지난 다이어리 ${index + 1}권`);
-  renderDiary(); sound.book();
+  renderDiary();
   diaryOverlay.classList.add('is-open'); diaryOverlay.setAttribute('aria-hidden', 'false');
   diaryOverlay.focus({ preventScroll: true });
 }
 function closeDiary() {
   if (state.mode !== 'diary') return;
   const fromArchive = state.diarySource === 'archive';
+  cancelPageTurn();
+  if (fromArchive) restoreHeldShelfBook();
   setSceneInert(false); canvas.focus({ preventScroll: true });
   diaryOverlay.classList.remove('is-open'); diaryOverlay.setAttribute('aria-hidden', 'true');
   diaryOverlay.setAttribute('aria-label', '다이어리');
@@ -7854,7 +8028,8 @@ publicationOverlay.addEventListener('pointerup', (e) => {
 });
 soundButton.addEventListener('click', () => sound.setMuted(!settings.muted));
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && ['mounting', 'taping', 'mount-finished'].includes(state.mode)) cancelMounting();
+  if (e.key === 'Escape' && state.mode === 'shelf-book-transition') cancelShelfBookOpen();
+  else if (e.key === 'Escape' && ['mounting', 'taping', 'mount-finished'].includes(state.mode)) cancelMounting();
   else if (e.key === 'Escape' && state.mode === 'diary') closeDiary();
   else if (e.key === 'Escape' && state.mode === 'publication') closePublication();
   else if (['mounting', 'mount-finished'].includes(state.mode) && e.key === 'ArrowLeft') turnMountPage(-1);
@@ -7880,6 +8055,14 @@ function frame() {
   lastFrame = now; elapsed += dt;
 
   updateFeed(dt, now);
+
+  if (state.mode === 'shelf-book-transition') {
+    stir.idleTime = 0; stir.idleStartedAt = 0;
+    updateShelfBookOpen(now);
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+    return;
+  }
 
   if (sceneCovered()) {
     stir.idleTime = 0; stir.idleStartedAt = 0;
@@ -7925,6 +8108,7 @@ function frame() {
 }
 window.addEventListener('resize', () => {
   if (state.pointerId !== null) clearActivePointer();
+  cancelPageTurn();
   renderer.setPixelRatio(pixelRatio());
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   applyLayout();
