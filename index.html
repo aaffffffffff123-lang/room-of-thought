@@ -4722,12 +4722,12 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
         </div>
       </section>
 
-      <p id="sceneHelp" class="sr-only">INPUT 사료통을 집어 맨홀 위에서 좌우로 흔들어 먹이를 넣은 다음, 보이는 볼펜을 직접 잡아 맨홀 속을 휘저으면 모기떼가 날아오릅니다. 날아오른 모기는 눌러서 잡습니다. 가운데의 사용 중인 다이어리와 책꽂이의 출판물·지난 다이어리를 열어볼 수 있습니다. 키보드에서는 I 키로 먹이를 넣고, 스페이스바로 맨홀을 휘젓고, M 키로 가장 가까운 모기를 잡고, D 키로 사용 중인 다이어리를 열며, 숫자 1부터 3으로 출판물을 엽니다.</p>
+      <p id="sceneHelp" class="sr-only">보이는 볼펜을 직접 잡아 맨홀 속을 휘저으면 모기가 날아오릅니다. 먼저 INPUT 사료통을 집어 맨홀 위에서 좌우로 흔들어 먹이를 넣고 휘저으면 훨씬 많은 모기떼가 날아옵니다. 날아오른 모기는 눌러서 잡습니다. 가운데의 사용 중인 다이어리와 책꽂이의 출판물·지난 다이어리를 열어볼 수 있습니다. 키보드에서는 I 키로 먹이를 넣고, 스페이스바로 맨홀을 휘젓고, M 키로 가장 가까운 모기를 잡고, D 키로 사용 중인 다이어리를 열며, 숫자 1부터 3으로 출판물을 엽니다.</p>
       <canvas id="scene" tabindex="0" aria-describedby="sceneHelp" aria-label="가운데 열린 맨홀, 커다란 볼펜, INPUT 사료통, 다이어리와 책꽂이가 놓인 전시장" aria-hidden="true" inert></canvas>
 
       <a id="arcadeFace" href="https://aaffffffffff123-lang.github.io/arcade/" target="_top" aria-label="혐규오락실 — 다른 게임 하러 가기" title="혐규오락실" aria-hidden="true" inert><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24.00 2.84 C27.19 2.93 30.48 3.49 33.44 4.70 C36.39 5.91 39.79 7.65 41.72 10.08 C43.64 12.51 44.41 16.18 44.97 19.28 C45.53 22.39 45.73 25.72 45.08 28.74 C44.42 31.76 43.07 35.11 41.06 37.40 C39.05 39.69 35.87 41.15 33.03 42.47 C30.19 43.79 27.09 45.14 24.00 45.31 C20.91 45.47 17.40 44.72 14.49 43.46 C11.58 42.19 8.30 40.21 6.54 37.72 C4.78 35.22 4.45 31.57 3.93 28.51 C3.41 25.45 2.76 22.23 3.42 19.37 C4.08 16.52 6.10 13.90 7.91 11.36 C9.72 8.82 11.61 5.56 14.29 4.14 C16.97 2.72 20.81 2.75 24.00 2.84 Z" fill="#221D1F"/><g stroke="#EFF1EC" stroke-width="2.2" stroke-linecap="round" fill="none"><path d="M13.2 8.4V17.9"/><path d="M20.4 6.2V16.6"/><path d="M27.6 6.2V16.6"/><path d="M34.6 8.8V18.3"/></g><g fill="#EFF1EC"><ellipse cx="18.1" cy="25.2" rx="2" ry="2.3"/><ellipse cx="29.9" cy="25.2" rx="2" ry="2.3"/></g><path d="M19.9 32.3a4.6 4.6 0 0 0 8.2 0" fill="none" stroke="#EFF1EC" stroke-width="2.3" stroke-linecap="round"/></svg></a>
 
-      <p id="hint" class="hint" role="status" aria-hidden="true">INPUT을 집어 흔드세요</p>
+      <p id="hint" class="hint" role="status" aria-hidden="true">볼펜으로 맨홀을 휘저으세요</p>
 
       <nav class="scene-actions" aria-label="작품 도구" aria-hidden="true" inert>
         <button id="diaryButton" class="sr-only" type="button">다이어리 열기</button>
@@ -6890,6 +6890,36 @@ const stir = {
   nextVanishAt: 0, soundWave: -1, phase: 'dormant',
 };
 function outbreakLimit() { return window.innerWidth < 720 ? MOSQUITO_MAX_MOBILE : MOSQUITO_MAX; }
+function queueOrdinaryStir(now) {
+  cancelQuietVanishes();
+  const room = Math.max(0, outbreakLimit() - activeMosquitoes().length - stir.pending.length);
+  const burstSize = window.innerWidth < 720
+    ? 14 + Math.floor(Math.random() * 5)
+    : 19 + Math.floor(Math.random() * 7);
+  const count = Math.min(room, burstSize);
+  if (count < 1) return false;
+
+  stir.keepCount = 3 + Math.floor(Math.random() * 2);
+  stir.phase = 'disturbed'; stir.burstLocked = true; stir.burstCharge = 0; stir.idleTime = 0; stir.idleStartedAt = 0;
+  stir.nextVanishAt = 0; stir.soundWave = -1;
+  if (!state.hasStirred) { state.hasStirred = true; hideHint(); }
+
+  for (let i = 0; i < count; i += 1) {
+    const wave = Math.min(1, Math.floor(i * 2 / count));
+    const a = Math.random() * Math.PI * 2, rr = rand(0.12, 0.88);
+    stir.pending.push({
+      x: Math.cos(a) * rr, z: Math.sin(a) * rr, wave, outbreak: false,
+      at: now + 220 + wave * 260 + rand(0, 130),
+    });
+  }
+  for (let i = 0; i < Math.min(8, count); i += 1) {
+    const a = Math.random() * Math.PI * 2, rr = rand(0.12, 0.84);
+    spawnBubble(Math.cos(a) * rr, Math.sin(a) * rr, Math.floor(i / 4) * 220 + rand(0, 130));
+  }
+  sound.glug();
+  if (navigator.vibrate) navigator.vibrate(10);
+  return true;
+}
 function queueOutbreak(now) {
   cancelQuietVanishes();
   const missing = Math.max(0, outbreakLimit() - activeMosquitoes().length - stir.pending.length);
@@ -6949,12 +6979,7 @@ function stirWater(dt, now) {
       if (feed.ready) {
         if (!queueOutbreak(now)) { stir.burstLocked = true; stir.burstCharge = 0; }
       } else {
-        stir.burstLocked = true; stir.burstCharge = 0;
-        feed.wobbleUntil = now + 520;
-        if (now >= feed.nextNeedHintAt) {
-          feed.nextNeedHintAt = now + 2600;
-          showHint('INPUT을 집어 흔드세요', 2600);
-        }
+        if (!queueOrdinaryStir(now)) { stir.burstLocked = true; stir.burstCharge = 0; }
       }
     }
   } else if (state.mode === 'room') {
