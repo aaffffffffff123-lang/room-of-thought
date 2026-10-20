@@ -4575,10 +4575,12 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
 }
 
 .publication-book {
-  width: min(88vw, 620px);
+  width: min(94vw, 980px);
   filter: drop-shadow(13px 15px 0 rgba(226, 219, 199, .42)) drop-shadow(17px 19px 0 rgba(91, 78, 59, .18));
 }
-.publication-page { left: 2.2%; right: 2.2%; cursor: default; }
+.publication-page { width: 46.8%; cursor: default; }
+#publicationPage { left: 2.2%; }
+#publicationRightPage { right: 2.2%; }
 .publication-page .saved-specimen { width: clamp(54px, 7.7vw, 84px); }
 .publication-page .specimen-time { display: none; }
 .publication-page .wet-mark { opacity: .72; }
@@ -4660,10 +4662,11 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
   }
   .book-shell { height: min(82vh, 680px); }
   .diary-book { width: min(91vw, 460px); height: min(81vh, 680px); }
-  .diary-book .book-seam { display: none; }
-  .diary-page { width: 95.6%; }
-  #leftPage { left: 2.2%; }
-  #rightPage { display: none; }
+  .publication-book { width: min(91vw, 460px); height: min(81vh, 680px); }
+  .diary-book .book-seam, .publication-book .book-seam { display: none; }
+  .diary-page, .publication-page { width: 95.6%; }
+  #leftPage, #publicationPage { left: 2.2%; }
+  #rightPage, #publicationRightPage { display: none; }
   .mount-hint { bottom: calc(4% + 68px); }
   .pending-specimen, .saved-specimen { width: clamp(52px, 16vw, 78px); }
   .hint { font-size: 13px; }
@@ -4777,8 +4780,10 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
 
       <section id="publicationOverlay" class="overlay publication-overlay" role="dialog" aria-modal="true" aria-label="출판물" aria-hidden="true" tabindex="-1">
         <button id="closePublication" class="close-book" type="button" aria-label="출판물을 덮고 방으로 돌아가기">방으로</button>
-        <div class="book-shell mounting-book publication-book">
-          <article id="publicationPage" class="paper mount-page publication-page" aria-label="출판물 표본 페이지"></article>
+        <div class="book-shell publication-book">
+          <div class="book-seam" aria-hidden="true"></div>
+          <article id="publicationPage" class="paper publication-page" aria-label="출판물 왼쪽 페이지"></article>
+          <article id="publicationRightPage" class="paper publication-page" aria-label="출판물 오른쪽 페이지"></article>
         </div>
         <div class="page-controls publication-page-controls">
           <button id="publicationPrev" type="button" aria-label="출판물 이전 페이지">이전</button>
@@ -4836,6 +4841,7 @@ const pageIndicator = document.querySelector('#pageIndicator');
 const publicationOverlay = document.querySelector('#publicationOverlay');
 const closePublicationButton = document.querySelector('#closePublication');
 const publicationPage = document.querySelector('#publicationPage');
+const publicationRightPage = document.querySelector('#publicationRightPage');
 const publicationPrevButton = document.querySelector('#publicationPrev');
 const publicationNextButton = document.querySelector('#publicationNext');
 const publicationIndicator = document.querySelector('#publicationIndicator');
@@ -7908,24 +7914,47 @@ function publicationSpecimenElement(def, index, pageIndex, specimenIndex, spot) 
   el.querySelector('.specimen-time')?.remove();
   return el;
 }
+function renderPublicationPage(el, def, publicationIndex, pageIndex) {
+  el.replaceChildren();
+  if (pageIndex < 0 || pageIndex >= PUBLICATION_PAGE_COUNT) return;
+  const spots = specimenLayoutSpots('publication', pageIndex, publicationIndex, DIARY_ARCHIVE_COUNT);
+  for (let i = 0; i < spots.length; i += 1) el.append(publicationSpecimenElement(def, publicationIndex, pageIndex, i, spots[i]));
+  el.setAttribute('aria-label', `모기 표본이 붙은 출판물 ${pageIndex + 1}쪽`);
+}
 function renderPublication(index) {
   const def = PUBLICATIONS[index];
-  state.publicationPageIndex = clamp(state.publicationPageIndex, 0, PUBLICATION_PAGE_COUNT - 1);
-  publicationPage.replaceChildren();
-  const spots = specimenLayoutSpots('publication', state.publicationPageIndex, index, DIARY_ARCHIVE_COUNT);
-  for (let i = 0; i < spots.length; i += 1) publicationPage.append(publicationSpecimenElement(def, index, state.publicationPageIndex, i, spots[i]));
-  publicationIndicator.textContent = `${state.publicationPageIndex + 1} / ${PUBLICATION_PAGE_COUNT}`;
-  publicationPrevButton.disabled = state.publicationPageIndex <= 0;
-  publicationNextButton.disabled = state.publicationPageIndex >= PUBLICATION_PAGE_COUNT - 1;
+  const last = PUBLICATION_PAGE_COUNT - 1;
+  if (isNarrow()) {
+    state.publicationPageIndex = clamp(state.publicationPageIndex, 0, last);
+    renderPublicationPage(publicationPage, def, index, state.publicationPageIndex);
+    publicationRightPage.replaceChildren();
+    publicationIndicator.textContent = `${state.publicationPageIndex + 1} / ${PUBLICATION_PAGE_COUNT}`;
+    publicationPrevButton.disabled = state.publicationPageIndex <= 0;
+    publicationNextButton.disabled = state.publicationPageIndex >= last;
+  } else {
+    const lastSpread = Math.floor(last / 2) * 2;
+    const left = clamp(Math.floor(state.publicationPageIndex / 2) * 2, 0, lastSpread);
+    state.publicationPageIndex = left;
+    renderPublicationPage(publicationPage, def, index, left);
+    renderPublicationPage(publicationRightPage, def, index, left + 1);
+    publicationIndicator.textContent = `${left + 1}–${Math.min(left + 2, PUBLICATION_PAGE_COUNT)} / ${PUBLICATION_PAGE_COUNT}`;
+    publicationPrevButton.disabled = left <= 0;
+    publicationNextButton.disabled = left >= lastSpread;
+  }
   publicationOverlay.setAttribute('aria-label', '출판물');
-  publicationPage.setAttribute('aria-label', `모기 표본이 붙은 출판물 ${state.publicationPageIndex + 1}쪽`);
 }
 function turnPublicationPage(dir) {
   if (state.mode !== 'publication' || pageTurnState.busy) return;
-  const next = clamp(state.publicationPageIndex + dir, 0, PUBLICATION_PAGE_COUNT - 1);
+  const narrow = isNarrow();
+  const step = narrow ? 1 : 2;
+  const maxIndex = narrow ? PUBLICATION_PAGE_COUNT - 1 : Math.floor((PUBLICATION_PAGE_COUNT - 1) / 2) * 2;
+  const next = clamp(state.publicationPageIndex + dir * step, 0, maxIndex);
   if (next === state.publicationPageIndex) return;
   playPageTurn({
-    overlay: publicationOverlay, outgoing: publicationPage, incoming: publicationPage, direction: dir,
+    overlay: publicationOverlay,
+    outgoing: narrow ? publicationPage : (dir > 0 ? publicationRightPage : publicationPage),
+    incoming: narrow ? publicationPage : (dir > 0 ? publicationPage : publicationRightPage),
+    direction: dir,
     commit: () => { state.publicationPageIndex = next; renderPublication(state.publicationIndex); },
   });
 }
