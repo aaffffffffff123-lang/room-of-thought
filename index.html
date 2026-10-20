@@ -4490,7 +4490,7 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
 #rightPage { right: 2.2%; }
 
 .page-date {
-  position: absolute; top: 5%; left: 7%; color: rgba(54, 49, 42, .62);
+  position: absolute; top: 5%; left: 7%; margin: 0; color: rgba(54, 49, 42, .62);
   font-family: var(--serif); font-size: clamp(13px, 1.5vw, 18px); letter-spacing: .08em;
 }
 .page-date.is-right { left: auto; right: 7%; text-align: right; }
@@ -4570,7 +4570,10 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
   background-size: 100% 100%, 13px 13px;
 }
 
-.publication-book { width: min(88vw, 620px); }
+.publication-book {
+  width: min(88vw, 620px);
+  filter: drop-shadow(13px 15px 0 rgba(226, 219, 199, .42)) drop-shadow(17px 19px 0 rgba(91, 78, 59, .18));
+}
 .publication-page { left: 2.2%; right: 2.2%; cursor: default; }
 .publication-page .saved-specimen { width: clamp(54px, 7.7vw, 84px); }
 .publication-page .specimen-time { display: none; }
@@ -4619,7 +4622,12 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
 }
 .page-controls button { border-bottom-color: rgba(244, 241, 232, .5); color: inherit; }
 .page-controls button:disabled { opacity: .3; cursor: default; }
-#pageIndicator { min-width: 80px; font-variant-numeric: tabular-nums; font-size: 13px; letter-spacing: .08em; text-align: center; }
+#pageIndicator, #mountPageIndicator, #publicationIndicator {
+  min-width: 80px; font-variant-numeric: tabular-nums; font-size: 13px; letter-spacing: .08em; text-align: center;
+}
+.mount-page-controls, .publication-page-controls { z-index: 52; }
+.archive-specimen { opacity: .88; }
+.archive-specimen .wet-mark { opacity: .64; }
 
 .empty-page-note {
   position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%);
@@ -4710,12 +4718,12 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
         </div>
       </section>
 
-      <p id="sceneHelp" class="sr-only">INPUT 사료통을 눌러 먹이를 넣은 다음, 보이는 볼펜을 직접 잡아 맨홀 속을 휘저으면 모기떼가 날아오릅니다. 날아오른 모기는 눌러서 잡습니다. 다이어리와 벽의 출판물도 열어볼 수 있습니다. 키보드에서는 I 키로 먹이를 넣고, 스페이스바로 맨홀을 휘젓고, M 키로 가장 가까운 모기를 잡고, D 키로 다이어리를 열며, 숫자 1부터 3으로 출판물을 엽니다.</p>
+      <p id="sceneHelp" class="sr-only">INPUT 사료통을 집어 맨홀 위에서 좌우로 흔들어 먹이를 넣은 다음, 보이는 볼펜을 직접 잡아 맨홀 속을 휘저으면 모기떼가 날아오릅니다. 날아오른 모기는 눌러서 잡습니다. 다이어리와 책꽂이의 출판물도 열어볼 수 있습니다. 키보드에서는 I 키로 먹이를 넣고, 스페이스바로 맨홀을 휘젓고, M 키로 가장 가까운 모기를 잡고, D 키로 다이어리를 열며, 숫자 1부터 3으로 출판물을 엽니다.</p>
       <canvas id="scene" tabindex="0" aria-describedby="sceneHelp" aria-label="가운데 열린 맨홀, 커다란 볼펜, INPUT 사료통, 다이어리와 책꽂이가 놓인 전시장" aria-hidden="true" inert></canvas>
 
       <a id="arcadeFace" href="https://aaffffffffff123-lang.github.io/arcade/" target="_top" aria-label="혐규오락실 — 다른 게임 하러 가기" title="혐규오락실" aria-hidden="true" inert><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24.00 2.84 C27.19 2.93 30.48 3.49 33.44 4.70 C36.39 5.91 39.79 7.65 41.72 10.08 C43.64 12.51 44.41 16.18 44.97 19.28 C45.53 22.39 45.73 25.72 45.08 28.74 C44.42 31.76 43.07 35.11 41.06 37.40 C39.05 39.69 35.87 41.15 33.03 42.47 C30.19 43.79 27.09 45.14 24.00 45.31 C20.91 45.47 17.40 44.72 14.49 43.46 C11.58 42.19 8.30 40.21 6.54 37.72 C4.78 35.22 4.45 31.57 3.93 28.51 C3.41 25.45 2.76 22.23 3.42 19.37 C4.08 16.52 6.10 13.90 7.91 11.36 C9.72 8.82 11.61 5.56 14.29 4.14 C16.97 2.72 20.81 2.75 24.00 2.84 Z" fill="#221D1F"/><g stroke="#EFF1EC" stroke-width="2.2" stroke-linecap="round" fill="none"><path d="M13.2 8.4V17.9"/><path d="M20.4 6.2V16.6"/><path d="M27.6 6.2V16.6"/><path d="M34.6 8.8V18.3"/></g><g fill="#EFF1EC"><ellipse cx="18.1" cy="25.2" rx="2" ry="2.3"/><ellipse cx="29.9" cy="25.2" rx="2" ry="2.3"/></g><path d="M19.9 32.3a4.6 4.6 0 0 0 8.2 0" fill="none" stroke="#EFF1EC" stroke-width="2.3" stroke-linecap="round"/></svg></a>
 
-      <p id="hint" class="hint" role="status" aria-hidden="true">INPUT을 눌러 넣으세요</p>
+      <p id="hint" class="hint" role="status" aria-hidden="true">INPUT을 집어 흔드세요</p>
 
       <nav class="scene-actions" aria-label="작품 도구" aria-hidden="true" inert>
         <button id="diaryButton" class="sr-only" type="button">다이어리 열기</button>
@@ -4740,6 +4748,11 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
             <p id="mountHint" class="mount-hint" role="status" aria-live="polite" aria-atomic="true">놓을 곳을 누르세요</p>
           </div>
         </div>
+        <div class="page-controls mount-page-controls">
+          <button id="mountPrevPage" type="button" aria-label="붙일 다이어리 이전 페이지">이전</button>
+          <span id="mountPageIndicator" aria-live="polite" aria-atomic="true"></span>
+          <button id="mountNextPage" type="button" aria-label="붙일 다이어리 다음 페이지">다음</button>
+        </div>
       </section>
 
       <section id="diaryOverlay" class="overlay diary-overlay" role="dialog" aria-modal="true" aria-label="다이어리" aria-hidden="true" tabindex="-1">
@@ -4751,7 +4764,7 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
         </div>
         <div class="page-controls">
           <button id="prevPage" type="button" aria-label="이전 페이지">이전</button>
-          <span id="pageIndicator"></span>
+          <span id="pageIndicator" aria-live="polite" aria-atomic="true"></span>
           <button id="nextPage" type="button" aria-label="다음 페이지">다음</button>
         </div>
       </section>
@@ -4760,6 +4773,11 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
         <button id="closePublication" class="close-book" type="button" aria-label="출판물을 덮고 방으로 돌아가기">방으로</button>
         <div class="book-shell mounting-book publication-book">
           <article id="publicationPage" class="paper mount-page publication-page" aria-label="출판물 표본 페이지"></article>
+        </div>
+        <div class="page-controls publication-page-controls">
+          <button id="publicationPrev" type="button" aria-label="출판물 이전 페이지">이전</button>
+          <span id="publicationIndicator" aria-live="polite" aria-atomic="true"></span>
+          <button id="publicationNext" type="button" aria-label="출판물 다음 페이지">다음</button>
         </div>
       </section>
 
@@ -4799,6 +4817,9 @@ const mountHint = document.querySelector('#mountHint');
 const pendingEl = document.querySelector('#pendingSpecimen');
 const tapeRoll = document.querySelector('#tapeRoll');
 const dragTape = document.querySelector('#dragTape');
+const mountPrevButton = document.querySelector('#mountPrevPage');
+const mountNextButton = document.querySelector('#mountNextPage');
+const mountPageIndicator = document.querySelector('#mountPageIndicator');
 const diaryOverlay = document.querySelector('#diaryOverlay');
 const closeDiaryButton = document.querySelector('#closeDiary');
 const leftPage = document.querySelector('#leftPage');
@@ -4809,6 +4830,9 @@ const pageIndicator = document.querySelector('#pageIndicator');
 const publicationOverlay = document.querySelector('#publicationOverlay');
 const closePublicationButton = document.querySelector('#closePublication');
 const publicationPage = document.querySelector('#publicationPage');
+const publicationPrevButton = document.querySelector('#publicationPrev');
+const publicationNextButton = document.querySelector('#publicationNext');
+const publicationIndicator = document.querySelector('#publicationIndicator');
 const publicationButtons = [...document.querySelectorAll('.publication-button')];
 const fallbackEl = document.querySelector('#noscriptFallback');
 
@@ -4831,6 +4855,9 @@ const MOSQUITO_MAX = 160;
 const MOSQUITO_MAX_MOBILE = 128;
 const LARVA_COUNT = 26;
 const PER_PAGE = 8;       // 다이어리 한 장에 붙는 최대 마리 수 (같은 날짜 안에서)
+const DIARY_PAGE_COUNT = 180;
+const PUBLICATION_PAGE_COUNT = 180;
+const DIARY_ARCHIVE_COUNT = 12;
 const DIARY_PAGE_TITLES = ['생각과 거리두기', '감정에 이름 붙이기', '인지적 탈융합'];
 const PUBLICATIONS = [
   { folio: '제 1 호', tape: 'grid', cover: 0x38474b, ink: '#d9ded8', seed: 31001 },
@@ -4865,24 +4892,26 @@ function loadSettings() {
 function saveSettings() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {}
 }
+function readStoredJson(key) {
+  try { return JSON.parse(localStorage.getItem(key) || 'null'); }
+  catch { return null; }
+}
 function validEntry(e) {
   return e && typeof e === 'object' && Number.isFinite(e.seed) && Number.isFinite(e.capturedAt) && e.capturedAt > 0
     && Number.isFinite(e.x) && e.x >= 0 && e.x <= 1 && Number.isFinite(e.y) && e.y >= 0 && e.y <= 1
     && Number.isFinite(e.rotation) && Number.isFinite(e.scale) && e.scale > 0;
 }
 function loadEntries() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(DIARY_KEY) || 'null');
-    if (raw && raw.version === 2 && Array.isArray(raw.entries)) return raw.entries.filter(validEntry);
-    // 예전 버전(v1)에서 가져오기
-    const legacy = JSON.parse(localStorage.getItem(LEGACY_DIARY_KEY) || 'null');
-    if (legacy && Array.isArray(legacy.entries)) {
-      return legacy.entries.filter(validEntry).map((e) => ({
-        id: e.id || makeId(), seed: e.seed, capturedAt: e.capturedAt, x: e.x, y: e.y,
-        rotation: e.rotation, scale: e.scale, tapeAngle: Number.isFinite(e.tapeAngle) ? e.tapeAngle : 0,
-      }));
-    }
-  } catch {}
+  const raw = readStoredJson(DIARY_KEY);
+  if (raw && raw.version === 2 && Array.isArray(raw.entries)) return raw.entries.filter(validEntry);
+  // 예전 버전(v1)은 v2 값이 손상된 경우에도 따로 읽는다.
+  const legacy = readStoredJson(LEGACY_DIARY_KEY);
+  if (legacy && Array.isArray(legacy.entries)) {
+    return legacy.entries.filter(validEntry).map((e) => ({
+      id: e.id || makeId(), seed: e.seed, capturedAt: e.capturedAt, x: e.x, y: e.y,
+      rotation: e.rotation, scale: e.scale, tapeAngle: Number.isFinite(e.tapeAngle) ? e.tapeAngle : 0,
+    }));
+  }
   return [];
 }
 function saveEntries() {
@@ -4900,13 +4929,12 @@ const state = {
   pointerType: 'mouse',
   pointerStartX: 0, pointerStartY: 0,
   penDragging: false,
-  tapMosquito: null, tapFeed: false, tapBook: false, tapPublication: null,
+  tapMosquito: null, tapBook: false, tapPublication: null,
   feedHovered: false, publicationHovered: null,
   bookHovered: false, bookPulseUntil: 0,
   pending: null,
   tapeDragging: false, tapePointerId: null, tapeStartX: 0, tapeStartY: 0,
-  diaryIndex: 0, publicationIndex: 0,
-  finishReadyAt: 0,
+  diaryIndex: 0, mountPageIndex: 0, publicationIndex: 0, publicationPageIndex: 0,
   hasStirred: false,
   shownCatchHint: false, shownDiaryHint: false,
   hasOpenedDiary: false,
@@ -5183,6 +5211,7 @@ class SoundKit {
     this.noiseBurst({ duration: 0.46, gain: 0.075, lowpass: 4600, highpass: 620, attack: 0.004 });
     this.noiseBurst({ duration: 0.22, gain: 0.045, lowpass: 2600, highpass: 480, attack: 0.006 });
   }
+  rattle() { this.noiseBurst({ duration: 0.085, gain: 0.055, lowpass: 5200, highpass: 760, attack: 0.002 }); }
   paper() { this.noiseBurst({ duration: 0.22, gain: 0.04, lowpass: 2400, attack: 0.02 }); }
   book() {
     this.noiseBurst({ duration: 0.28, gain: 0.05, lowpass: 1800, attack: 0.03 });
@@ -5264,6 +5293,7 @@ const raycaster = new Raycaster();
 const ndc = new Vector2();
 const floorPlane = new Plane(new Vector3(0, 1, 0), 0);
 const waterPlane = new Plane(new Vector3(0, 1, 0), -WATER_Y);
+const feedDragPlane = new Plane(new Vector3(0, 1, 0), -.72);
 const tmpA = new Vector3(), tmpB = new Vector3(), tmpC = new Vector3();
 
 const cameraHome = new Vector3();
@@ -6466,18 +6496,12 @@ function makeFishFoodLabelTexture() {
   g.fillText('성장 촉진 · 면역 강화', 256, 588);
   g.font = '500 27px "Noto Sans KR", sans-serif';
   g.fillText('선명한 발색 · 높은 부상성', 256, 640);
-  const t = new CanvasTexture(c); t.colorSpace = SRGBColorSpace;
-  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  return t;
-}
-function makeInputStickerTexture() {
-  const c = document.createElement('canvas'); c.width = 640; c.height = 220;
-  const g = c.getContext('2d');
-  g.fillStyle = '#f7f5ed'; g.fillRect(7, 9, 626, 202);
-  g.strokeStyle = 'rgba(91,82,68,.2)'; g.lineWidth = 5; g.strokeRect(7, 9, 626, 202);
-  g.fillStyle = '#171717'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = '700 128px "Comic Sans MS", "Bradley Hand", cursive';
-  g.fillText('INPUT', 318, 115);
+  g.save(); g.translate(258, 166); g.rotate(-.075);
+  g.fillStyle = '#f7f5ed'; g.fillRect(-202, -58, 404, 116);
+  g.strokeStyle = 'rgba(91,82,68,.24)'; g.lineWidth = 4; g.strokeRect(-202, -58, 404, 116);
+  g.fillStyle = '#171717'; g.textBaseline = 'middle'; g.textAlign = 'center';
+  g.font = '700 82px "Comic Sans MS", "Bradley Hand", cursive'; g.fillText('INPUT', 0, 5);
+  g.restore();
   const t = new CanvasTexture(c); t.colorSpace = SRGBColorSpace;
   t.anisotropy = renderer.capabilities.getMaxAnisotropy();
   return t;
@@ -6486,6 +6510,9 @@ function makeInputStickerTexture() {
 const feed = {
   ready: false, pouring: false, startedAt: 0, duration: 1250,
   wobbleUntil: 0, nextNeedHintAt: 0, particles: [], floating: [],
+  dragging: false, dragTarget: new Vector3(), grabOffset: new Vector3(),
+  lastClientX: 0, lastClientY: 0, lastMoveAt: 0, lastDirection: new Vector2(),
+  shakeCount: 0, lastShakeAt: 0, dragTilt: 0,
 };
 const feedGroup = new Group();
 const bottlePivot = new Group();
@@ -6506,10 +6533,11 @@ for (let i = 0; i < 10; i += 1) {
   ridge.position.set(Math.sin(a) * 0.326, 1.43, Math.cos(a) * 0.326);
   ridge.rotation.y = a; bottlePivot.add(ridge);
 }
-const feedLabel = new Mesh(new PlaneGeometry(0.63, 0.88), new MeshStandardMaterial({ map: makeFishFoodLabelTexture(), roughness: 0.72 }));
-feedLabel.position.set(0, 0.71, 0.348); bottlePivot.add(feedLabel);
-const inputSticker = new Mesh(new PlaneGeometry(0.55, 0.19), new MeshStandardMaterial({ map: makeInputStickerTexture(), transparent: true, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2 }));
-inputSticker.position.set(0.015, 0.94, 0.36); inputSticker.rotation.z = -0.075; bottlePivot.add(inputSticker);
+const feedLabel = new Mesh(
+  new CylinderGeometry(.348, .348, .88, 32, 1, true, -.905, 1.81),
+  new MeshStandardMaterial({ map: makeFishFoodLabelTexture(), roughness: .72, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: -1 }),
+);
+feedLabel.position.y = .71; bottlePivot.add(feedLabel);
 
 const spoon = new Group();
 const spoonBowl = new Mesh(new SphereGeometry(0.15, 16, 9), feedPlastic);
@@ -6527,8 +6555,8 @@ for (let i = 0; i < 17; i += 1) {
   pellet.scale.setScalar(0.72 + spillRnd() * 0.5);
   feedGroup.add(pellet);
 }
-const feedHit = new Mesh(new BoxGeometry(1.55, 1.8, 1.35), hitMaterial);
-feedHit.position.set(0.28, 0.78, 0.2); feedGroup.add(feedHit);
+const feedHit = new Mesh(new BoxGeometry(.82, 1.75, .82), hitMaterial);
+feedHit.position.set(0, .78, 0); bottlePivot.add(feedHit);
 scene.add(feedGroup);
 
 for (let i = 0; i < 18; i += 1) {
@@ -6550,15 +6578,17 @@ function feedInput() {
   if (state.mode !== 'room' || feed.pouring) return;
   sound.ensure();
   const now = performance.now();
+  feed.dragging = false; feed.shakeCount = 0; feed.lastDirection.set(0, 0);
+  canvas.classList.remove('is-dragging');
   if (feed.ready) {
     feed.wobbleUntil = now + 380; sound.feed();
     return;
   }
   feed.pouring = true; feed.startedAt = now; feed.duration = reducedMotion ? 420 : 1250;
-  feed.wobbleUntil = 0; feedGroup.updateMatrixWorld(true);
+  feed.wobbleUntil = 0; bottlePivot.rotation.z = 0; bottlePivot.updateMatrixWorld(true);
   const mouth = new Vector3(-0.2, 1.48, 0.04)
     .applyAxisAngle(new Vector3(0, 0, 1), .88)
-    .applyMatrix4(feedGroup.matrixWorld);
+    .applyMatrix4(bottlePivot.matrixWorld);
   const rnd = seededRandom(Math.floor(now));
   for (let i = 0; i < feed.particles.length; i += 1) {
     const p = feed.particles[i], u = p.userData;
@@ -6579,7 +6609,17 @@ function consumeFeedCharge() {
 }
 function updateFeed(dt, now) {
   const wobble = now < feed.wobbleUntil ? Math.sin((feed.wobbleUntil - now) * .075) * .045 : 0;
+  if (feed.dragging) {
+    bottlePivot.position.x = damp(bottlePivot.position.x, feed.dragTarget.x, 24, dt);
+    bottlePivot.position.y = damp(bottlePivot.position.y, feed.dragTarget.y, 24, dt);
+    bottlePivot.position.z = damp(bottlePivot.position.z, feed.dragTarget.z, 24, dt);
+    bottlePivot.rotation.z = damp(bottlePivot.rotation.z, feed.dragTilt, 22, dt);
+    return;
+  }
   if (!feed.pouring) {
+    bottlePivot.position.x = damp(bottlePivot.position.x, 0, 11, dt);
+    bottlePivot.position.y = damp(bottlePivot.position.y, 0, 11, dt);
+    bottlePivot.position.z = damp(bottlePivot.position.z, 0, 11, dt);
     bottlePivot.rotation.z = damp(bottlePivot.rotation.z, wobble, 15, dt);
     return;
   }
@@ -6617,16 +6657,28 @@ function updateFeed(dt, now) {
   }
 }
 
-/* ───────────────────────── 출판물 책꽂이 ───────────────────────── */
-function makePublicationCoverTexture(def, index) {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 768;
+/* ───────────────────────── 책등이 보이는 책꽂이 ───────────────────────── */
+function makeBookSpineTexture(color, ink, label, number, diary = false) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 1024;
   const g = c.getContext('2d');
-  g.fillStyle = `#${def.cover.toString(16).padStart(6, '0')}`; g.fillRect(0, 0, c.width, c.height);
-  g.strokeStyle = 'rgba(239,232,211,.22)'; g.lineWidth = 4; g.strokeRect(35, 35, 442, 698);
-  g.fillStyle = def.ink; g.textAlign = 'center';
-  g.font = '400 46px "Nanum Myeongjo", serif'; g.fillText('사유의 방', 256, 150);
-  g.font = '400 210px Georgia, serif'; g.fillText(['I', 'II', 'III'][index], 256, 440);
-  g.font = '500 25px Arial, sans-serif'; g.letterSpacing = '4px'; g.fillText('PUBLICATION', 256, 650);
+  g.fillStyle = `#${color.toString(16).padStart(6, '0')}`; g.fillRect(0, 0, c.width, c.height);
+  g.strokeStyle = 'rgba(239,232,211,.2)'; g.lineWidth = 7; g.strokeRect(18, 18, 220, 988);
+  g.fillStyle = ink; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = diary ? '500 37px "Nanum Myeongjo", serif' : '500 34px "Nanum Myeongjo", serif';
+  [...label].forEach((char, i) => g.fillText(char, 128, 160 + i * 58));
+  if (diary) {
+    g.save(); g.translate(128, 563); g.rotate(-.045);
+    g.fillStyle = 'rgba(241,230,198,.78)'; g.fillRect(-105, -52, 210, 104);
+    g.strokeStyle = 'rgba(103,82,56,.28)'; g.lineWidth = 4; g.strokeRect(-105, -52, 210, 104);
+    for (let x = -78; x <= 78; x += 52) {
+      g.fillStyle = '#a25b57'; g.beginPath(); g.arc(x, 0, 10, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#708361'; g.beginPath(); g.ellipse(x + 15, 9, 13, 6, .45, 0, Math.PI * 2); g.fill();
+    }
+    g.restore();
+  }
+  g.fillStyle = ink; g.font = diary ? '500 43px Georgia, serif' : '400 104px Georgia, serif';
+  g.fillText(number, 128, diary ? 824 : 790);
+  g.font = '500 24px Arial, sans-serif'; g.fillText(diary ? 'DIARY' : 'PUBLICATION', 128, 934);
   const t = new CanvasTexture(c); t.colorSpace = SRGBColorSpace;
   t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t;
 }
@@ -6642,18 +6694,34 @@ for (const x of [-1.82, 1.82]) {
   const side = new Mesh(new BoxGeometry(0.14, 2.5, 0.58), shelfWood);
   side.position.set(x, 1.35, .18); side.castShadow = true; publicationShelf.add(side);
 }
-const publicationBooks = [], publicationHits = [];
-PUBLICATIONS.forEach((def, index) => {
-  const x = (index - 1) * 1.12;
-  const book = new Group(); book.position.set(x, 1.09, .38);
-  const block = new Mesh(new BoxGeometry(.84, 1.66, .14), new MeshStandardMaterial({ color: def.cover, roughness: .7 }));
-  block.castShadow = true; book.add(block);
-  const coverArt = new Mesh(new PlaneGeometry(.77, 1.55), new MeshStandardMaterial({ map: makePublicationCoverTexture(def, index), roughness: .74 }));
-  coverArt.position.z = .076; book.add(coverArt);
-  const hit = new Mesh(new BoxGeometry(1.02, 1.9, .36), hitMaterial);
-  hit.position.z = .08; hit.userData.publicationIndex = index; book.add(hit);
-  publicationShelf.add(book); publicationBooks.push(book); publicationHits.push(hit);
-});
+const publicationBooks = [], publicationHits = [], shelfDiaryBooks = [];
+const shelfVolumes = [
+  ...PUBLICATIONS.map((def, index) => ({ type: 'publication', def, index, width: [.3, .28, .31][index], height: [1.7, 1.58, 1.74][index] })),
+  ...Array.from({ length: 5 }, (_, index) => ({ type: 'diary', index, width: [.25, .28, .3, .26, .28][index], height: [1.55, 1.68, 1.6, 1.72, 1.57][index] })),
+];
+const shelfGap = .06;
+const shelfWidth = shelfVolumes.reduce((sum, volume) => sum + volume.width, 0) + shelfGap * (shelfVolumes.length - 1);
+let shelfCursor = -shelfWidth / 2;
+for (const volume of shelfVolumes) {
+  const x = shelfCursor + volume.width / 2; shelfCursor += volume.width + shelfGap;
+  const diary = volume.type === 'diary';
+  const color = diary ? [0x49372c, 0x3d3028, 0x564036, 0x40342d, 0x4d392f][volume.index] : volume.def.cover;
+  const ink = diary ? '#d8cab0' : volume.def.ink;
+  const label = diary ? '다이어리' : '출판물';
+  const number = diary ? String(volume.index + 1).padStart(2, '0') : ['I', 'II', 'III'][volume.index];
+  const book = new Group();
+  book.position.set(x, .24 + volume.height / 2, .36); book.userData.restZ = .36;
+  const block = new Mesh(new BoxGeometry(volume.width, volume.height, .66), new MeshStandardMaterial({ color, roughness: .72 }));
+  block.castShadow = true; block.receiveShadow = true; book.add(block);
+  const spineArt = new Mesh(new PlaneGeometry(volume.width - .035, volume.height - .08), new MeshStandardMaterial({ map: makeBookSpineTexture(color, ink, label, number, diary), roughness: .78 }));
+  spineArt.position.z = .334; book.add(spineArt);
+  if (!diary) {
+    const hit = new Mesh(new BoxGeometry(volume.width + .07, volume.height + .1, .78), hitMaterial);
+    hit.position.z = .03; hit.userData.publicationIndex = volume.index; book.add(hit);
+    publicationBooks.push(book); publicationHits.push(hit);
+  } else shelfDiaryBooks.push(book);
+  publicationShelf.add(book);
+}
 scene.add(publicationShelf);
 
 /* ───────────────────────── 화면 비율별 배치 ───────────────────────── */
@@ -6853,7 +6921,7 @@ function stirWater(dt, now) {
         feed.wobbleUntil = now + 520;
         if (now >= feed.nextNeedHintAt) {
           feed.nextNeedHintAt = now + 2600;
-          showHint('INPUT이 필요합니다', 2200);
+          showHint('INPUT을 집어 흔드세요', 2600);
         }
       }
     }
@@ -6911,6 +6979,66 @@ function stirWater(dt, now) {
 
 /* ───────────────────────── 캔버스 포인터 ───────────────────────── */
 function liftedY(e) { return e.pointerType === 'touch' ? e.clientY - TOUCH_LIFT_PX : e.clientY; }
+function feedPointAt(clientX, clientY, out) {
+  setNdc(clientX, clientY);
+  raycaster.setFromCamera(ndc, camera);
+  if (!raycaster.ray.intersectPlane(feedDragPlane, out)) return null;
+  feedGroup.updateMatrixWorld(true);
+  return feedGroup.worldToLocal(out);
+}
+function beginFeedDrag(e) {
+  if (feed.pouring) return false;
+  const point = feedPointAt(e.clientX, liftedY(e), tmpC);
+  if (!point) return false;
+  feed.dragging = true; feed.shakeCount = 0; feed.lastShakeAt = 0; feed.dragTilt = 0;
+  feed.lastDirection.set(0, 0);
+  feed.grabOffset.set(bottlePivot.position.x - point.x, 0, bottlePivot.position.z - point.z);
+  feed.dragTarget.set(
+    clamp(point.x + feed.grabOffset.x, -4.4, 4.4),
+    .52,
+    clamp(point.z + feed.grabOffset.z, -4.4, 4.4),
+  );
+  feed.lastClientX = e.clientX; feed.lastClientY = e.clientY; feed.lastMoveAt = performance.now();
+  canvas.classList.add('is-dragging');
+  showHint('맨홀 위에서 좌우로 흔드세요', 4200);
+  return true;
+}
+function moveFeedDrag(e) {
+  if (!feed.dragging) return;
+  const point = feedPointAt(e.clientX, liftedY(e), tmpC);
+  if (!point) return;
+  feed.dragTarget.set(
+    clamp(point.x + feed.grabOffset.x, -4.4, 4.4),
+    .52,
+    clamp(point.z + feed.grabOffset.z, -4.4, 4.4),
+  );
+  const now = performance.now();
+  const dx = e.clientX - feed.lastClientX, dy = e.clientY - feed.lastClientY;
+  const distance = Math.hypot(dx, dy), moveMs = Math.max(1, now - feed.lastMoveAt);
+  const speed = distance / moveMs;
+  feed.dragTilt = clamp(dx * .02, -.62, .62);
+  if (moveMs > 420) { feed.lastDirection.set(0, 0); feed.shakeCount = 0; }
+  if (distance >= 7) {
+    const direction = new Vector2(dx, dy).normalize();
+    const reversed = feed.lastDirection.lengthSq() > .5 && direction.dot(feed.lastDirection) < -.28;
+    if (reversed && speed > .19 && now - feed.lastShakeAt > 90) {
+      feed.shakeCount += 1; feed.lastShakeAt = now; sound.rattle();
+      if (navigator.vibrate) navigator.vibrate(6);
+      if (feed.shakeCount >= 3) {
+        tmpB.copy(feed.dragTarget); feedGroup.localToWorld(tmpB);
+        if (Math.hypot(tmpB.x, tmpB.z) <= 2.35) { bottlePivot.position.copy(feed.dragTarget); feedInput(); }
+        else { feed.shakeCount = 0; showHint('맨홀 위에서 흔드세요', 2600); }
+      }
+    }
+    feed.lastDirection.copy(direction);
+  }
+  feed.lastClientX = e.clientX; feed.lastClientY = e.clientY; feed.lastMoveAt = now;
+}
+function endFeedDrag() {
+  if (!feed.dragging) return;
+  feed.dragging = false; feed.shakeCount = 0; feed.dragTilt = 0; feed.lastDirection.set(0, 0);
+  canvas.classList.remove('is-dragging');
+}
 function beginPenDrag(e) {
   const info = controlPointAt(e.clientX, liftedY(e), pen.control);
   if (!info) return false;
@@ -6929,8 +7057,8 @@ function endPenDrag() {
 function clearActivePointer() {
   const pointerId = state.pointerId;
   if (state.penDragging) endPenDrag();
+  if (feed.dragging) endFeedDrag();
   state.tapMosquito = null;
-  state.tapFeed = false;
   state.tapBook = false;
   state.tapPublication = null;
   state.pointerId = null;
@@ -6939,16 +7067,20 @@ function clearActivePointer() {
 function onCanvasPointerDown(e) {
   if (state.mode !== 'room' || state.pointerId !== null || !e.isPrimary) return;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
-  const wantsMosquito = mosquitoAtPointer(e.clientX, e.clientY, e.pointerType);
-  const wantsFeed = !wantsMosquito && feedAtPointer(e.clientX, e.clientY);
-  const wantsBook = !wantsMosquito && !wantsFeed && bookAtPointer(e.clientX, e.clientY);
-  const wantsPublication = !wantsMosquito && !wantsFeed && !wantsBook ? publicationAtPointer(e.clientX, e.clientY) : null;
-  const wantsPen = !wantsMosquito && !wantsFeed && !wantsBook && wantsPublication === null && penAtPointer(e.clientX, e.clientY);
+  const wantsFeed = feedAtPointer(e.clientX, e.clientY);
+  const wantsBook = !wantsFeed && bookAtPointer(e.clientX, e.clientY);
+  const wantsPublication = !wantsFeed && !wantsBook ? publicationAtPointer(e.clientX, e.clientY) : null;
+  const wantsMosquito = !wantsFeed && !wantsBook && wantsPublication === null ? mosquitoAtPointer(e.clientX, e.clientY, e.pointerType) : null;
+  const wantsPen = !wantsFeed && !wantsBook && wantsPublication === null && !wantsMosquito && penAtPointer(e.clientX, e.clientY);
   if (!wantsMosquito && !wantsFeed && !wantsBook && wantsPublication === null && !wantsPen) return;
   sound.ensure();
   state.pointerId = e.pointerId; state.pointerType = e.pointerType;
   state.pointerStartX = e.clientX; state.pointerStartY = e.clientY;
-  state.tapMosquito = wantsMosquito; state.tapFeed = wantsFeed; state.tapBook = wantsBook; state.tapPublication = wantsPublication;
+  state.tapMosquito = wantsMosquito; state.tapBook = wantsBook; state.tapPublication = wantsPublication;
+  if (wantsFeed && !beginFeedDrag(e)) {
+    state.pointerId = null;
+    return;
+  }
   if (wantsPen && !beginPenDrag(e)) {
     state.pointerId = null;
     return;
@@ -6956,23 +7088,24 @@ function onCanvasPointerDown(e) {
   canvas.setPointerCapture?.(e.pointerId);
 }
 function onCanvasPointerMove(e) {
+  if (feed.dragging && e.pointerId === state.pointerId) { moveFeedDrag(e); return; }
   if (state.penDragging && e.pointerId === state.pointerId) {
     const info = controlPointAt(e.clientX, liftedY(e), pen.control);
     if (!info) return;
     pen.inWater = info.inWater;
     return;
   }
-  if (e.pointerId === state.pointerId && (state.tapMosquito || state.tapFeed || state.tapBook || state.tapPublication !== null)) {
+  if (e.pointerId === state.pointerId && (state.tapMosquito || state.tapBook || state.tapPublication !== null)) {
     const moved = Math.hypot(e.clientX - state.pointerStartX, e.clientY - state.pointerStartY);
-    if (moved > 18) { state.tapMosquito = null; state.tapFeed = false; state.tapBook = false; state.tapPublication = null; }
+    if (moved > 18) { state.tapMosquito = null; state.tapBook = false; state.tapPublication = null; }
     return;
   }
   if (e.pointerType === 'mouse' && state.mode === 'room' && state.pointerId === null) {
-    const m = mosquitoAtPointer(e.clientX, e.clientY, 'mouse');
-    const f = !m && feedAtPointer(e.clientX, e.clientY);
-    const b = !m && !f && bookAtPointer(e.clientX, e.clientY);
-    const publication = !m && !f && !b ? publicationAtPointer(e.clientX, e.clientY) : null;
-    const p = !m && !f && !b && publication === null && penAtPointer(e.clientX, e.clientY);
+    const f = feedAtPointer(e.clientX, e.clientY);
+    const b = !f && bookAtPointer(e.clientX, e.clientY);
+    const publication = !f && !b ? publicationAtPointer(e.clientX, e.clientY) : null;
+    const m = !f && !b && publication === null ? mosquitoAtPointer(e.clientX, e.clientY, 'mouse') : null;
+    const p = !f && !b && publication === null && !m && penAtPointer(e.clientX, e.clientY);
     state.feedHovered = f;
     state.bookHovered = b;
     state.publicationHovered = publication;
@@ -6986,12 +7119,10 @@ function onCanvasPointerUp(e) {
   if (e.pointerId !== state.pointerId) return;
   const moved = Math.hypot(e.clientX - state.pointerStartX, e.clientY - state.pointerStartY);
   const tappedMosquito = moved < 18 ? state.tapMosquito : null;
-  const shouldFeed = state.tapFeed && moved < 16;
   const shouldOpenBook = state.tapBook && moved < 16;
   const publicationIndex = moved < 16 ? state.tapPublication : null;
   clearActivePointer();
   if (tappedMosquito) catchMosquito(tappedMosquito);
-  else if (shouldFeed) feedInput();
   else if (shouldOpenBook) openDiary();
   else if (publicationIndex !== null) openPublication(publicationIndex);
 }
@@ -7006,7 +7137,7 @@ canvas.addEventListener('pointercancel', onCanvasPointerCancel);
 canvas.addEventListener('lostpointercapture', (e) => { if (e.pointerId === state.pointerId) onCanvasPointerCancel(e); });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('pointerleave', () => {
-  if (!state.penDragging) {
+  if (!state.penDragging && !feed.dragging) {
     state.feedHovered = false; state.bookHovered = false; state.publicationHovered = null;
     canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book', 'can-use-object');
   }
@@ -7052,7 +7183,11 @@ canvas.addEventListener('keydown', (e) => {
 
 /* ───────────────────────── 표본 그림 ───────────────────────── */
 function specimenImage(seed) {
-  if (specimenImageCache.has(seed)) return specimenImageCache.get(seed);
+  if (specimenImageCache.has(seed)) {
+    const cached = specimenImageCache.get(seed);
+    specimenImageCache.delete(seed); specimenImageCache.set(seed, cached);
+    return cached;
+  }
   const rnd = seededRandom(seed);
   const S = 320;
   const c = document.createElement('canvas'); c.width = S; c.height = S;
@@ -7115,11 +7250,12 @@ function specimenImage(seed) {
   for (const side of [-1, 1]) { g.beginPath(); g.moveTo(side * 4, -64); g.quadraticCurveTo(side * 22, -86, side * (30 + jitter(8)), -100); g.stroke(); }
   g.lineWidth = 3; g.beginPath(); g.moveTo(0, -66); g.quadraticCurveTo(jitter(10), -100, jitter(12), -136); g.stroke();
   const url = c.toDataURL('image/png');
+  if (specimenImageCache.size >= 160) specimenImageCache.delete(specimenImageCache.keys().next().value);
   specimenImageCache.set(seed, url);
   return url;
 }
 
-/* ───────────────────────── 다이어리 페이지 (날짜별) ───────────────────────── */
+/* ───────────────────────── 다이어리 180쪽 ───────────────────────── */
 function dateKeyOf(ms) {
   const d = new Date(ms);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -7127,28 +7263,47 @@ function dateKeyOf(ms) {
 function formatDate(ms) { return new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(ms)); }
 function formatTime(ms) { return new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(ms)); }
 function buildPages(list) {
+  const pinned = [];
   const byDay = new Map();
   for (const e of [...list].sort((a, b) => a.capturedAt - b.capturedAt)) {
+    if (Number.isInteger(e.pageIndex) && e.pageIndex >= 0 && e.pageIndex < 1000) { pinned.push(e); continue; }
     const k = dateKeyOf(e.capturedAt);
     if (!byDay.has(k)) byDay.set(k, []);
     byDay.get(k).push(e);
   }
-  const pages = [];
+  const legacyPages = [];
   for (const [key, dayEntries] of byDay) {
-    for (let i = 0; i < dayEntries.length; i += PER_PAGE) pages.push({ key, date: dayEntries[i].capturedAt, entries: dayEntries.slice(i, i + PER_PAGE) });
+    for (let i = 0; i < dayEntries.length; i += PER_PAGE) legacyPages.push({ key, date: dayEntries[i].capturedAt, entries: dayEntries.slice(i, i + PER_PAGE) });
   }
+  const pinnedMax = pinned.reduce((max, e) => Math.max(max, e.pageIndex), -1);
+  const total = Math.max(DIARY_PAGE_COUNT, legacyPages.length, pinnedMax + 1);
+  const pages = Array.from({ length: total }, (_, pageIndex) => ({ pageIndex, key: null, date: null, entries: [] }));
+  legacyPages.forEach((page, pageIndex) => Object.assign(pages[pageIndex], page));
+  for (const e of pinned) pages[e.pageIndex].entries.push(e);
+  for (const page of pages) {
+    page.entries.sort((a, b) => a.capturedAt - b.capturedAt);
+    if (page.entries.length) {
+      page.date = page.entries[0].capturedAt;
+      page.key = dateKeyOf(page.date);
+    }
+  }
+  if (pages.every((page) => page.entries.length >= PER_PAGE)) pages.push({ pageIndex: pages.length, key: null, date: null, entries: [] });
   return pages;
 }
-function pageForNewEntry(capturedAt) {
-  const pages = buildPages(entries);
-  const key = dateKeyOf(capturedAt);
-  const last = [...pages].reverse().find((p) => p.key === key);
-  if (last && last.entries.length < PER_PAGE) return last.entries;
-  return [];
+function lastOccupiedDiaryPage(pages = buildPages(entries)) {
+  for (let i = pages.length - 1; i >= 0; i -= 1) if (pages[i].entries.length) return i;
+  return 0;
 }
 function pageIndexForNewEntry(capturedAt) {
-  const marker = { capturedAt };
-  return Math.max(0, buildPages([...entries, marker]).findIndex((page) => page.entries.includes(marker)));
+  const pages = buildPages(entries);
+  const key = dateKeyOf(capturedAt);
+  for (let i = pages.length - 1; i >= 0; i -= 1) if (pages[i].key === key && pages[i].entries.length < PER_PAGE) return i;
+  if (!pages.some((page) => page.entries.length)) return 0;
+  const last = lastOccupiedDiaryPage(pages);
+  const nextEmpty = pages.findIndex((page, index) => index > last && page.entries.length === 0);
+  if (nextEmpty >= 0) return nextEmpty;
+  const anyRoom = pages.findIndex((page) => page.entries.length === 0);
+  return anyRoom >= 0 ? anyRoom : pages.length - 1;
 }
 function specimenElement(entry) {
   const el = document.createElement('div');
@@ -7164,30 +7319,53 @@ function specimenElement(entry) {
   el.append(wet, img, tape, time);
   return el;
 }
+const DIARY_ARCHIVE_SPOTS = [
+  [.17, .21], [.39, .2], [.62, .23], [.83, .2],
+  [.19, .48], [.4, .46], [.64, .49], [.84, .47],
+  [.16, .74], [.38, .76], [.62, .73], [.83, .77],
+];
+function diaryArchiveSpecimens(pageIndex, actualCount = 0) {
+  const count = Math.max(0, DIARY_ARCHIVE_COUNT - Math.min(DIARY_ARCHIVE_COUNT, actualCount));
+  const rnd = seededRandom(410000 + pageIndex * 131);
+  const specimens = [];
+  for (let i = 0; i < count; i += 1) {
+    const spot = DIARY_ARCHIVE_SPOTS[i];
+    const entry = {
+      seed: 410000 + ((pageIndex * 5 + i) % 32),
+      capturedAt: Date.UTC(2022, pageIndex % 12, (i + pageIndex) % 27 + 1, 10, i * 7),
+      x: clamp(spot[0] + (rnd() - .5) * .035, .1, .9),
+      y: clamp(spot[1] + (rnd() - .5) * .04, .15, .82),
+      rotation: (rnd() - .5) * 24,
+      scale: .72 + rnd() * .19,
+      tapeAngle: (rnd() - .5) * 28,
+    };
+    const specimen = specimenElement(entry);
+    specimen.classList.add('archive-specimen');
+    specimen.setAttribute('aria-hidden', 'true');
+    const image = specimen.querySelector('img'); if (image) image.alt = '';
+    specimen.querySelector('.specimen-time')?.remove();
+    specimens.push(specimen);
+  }
+  return specimens;
+}
 function renderPage(el, page, pageIndex) {
   el.replaceChildren();
   const title = document.createElement('p');
   title.className = `page-theme${pageIndex % 2 ? ' is-right' : ''}`;
   title.textContent = DIARY_PAGE_TITLES[pageIndex % DIARY_PAGE_TITLES.length];
   el.append(title);
-  if (!page) return;
-  const date = document.createElement('time');
+  const date = document.createElement(page?.date ? 'time' : 'p');
   date.className = `page-date${pageIndex % 2 ? '' : ' is-right'}`;
-  date.dateTime = new Date(page.date).toISOString(); date.textContent = formatDate(page.date);
+  if (page?.date) { date.dateTime = new Date(page.date).toISOString(); date.textContent = formatDate(page.date); }
+  else date.textContent = `p. ${String(pageIndex + 1).padStart(3, '0')}`;
   el.append(date);
-  for (const e of page.entries) el.append(specimenElement(e));
+  const actual = page?.entries || [];
+  el.append(...diaryArchiveSpecimens(pageIndex, actual.length));
+  for (const e of actual) el.append(specimenElement(e));
 }
 function isNarrow() { return window.matchMedia('(max-width: 680px)').matches; }
 function renderDiary() {
   const pages = buildPages(entries);
-  if (!pages.length) {
-    renderPage(leftPage, null, 0); renderPage(rightPage, null, 1);
-    const note = document.createElement('p'); note.className = 'empty-page-note'; note.textContent = '아직 아무것도 붙이지 않았습니다';
-    leftPage.append(note);
-    pageIndicator.textContent = isNarrow() ? '1 / 1' : '1–2 / 2';
-    prevButton.disabled = true; nextButton.disabled = true;
-    return;
-  }
   const last = pages.length - 1;
   if (isNarrow()) {
     state.diaryIndex = clamp(state.diaryIndex, 0, last);
@@ -7206,9 +7384,9 @@ function renderDiary() {
 }
 function turnPage(dir) {
   const pages = buildPages(entries);
-  if (!pages.length) return;
   const step = isNarrow() ? 1 : 2;
-  const next = clamp(state.diaryIndex + dir * step, 0, pages.length - 1);
+  const maxIndex = isNarrow() ? pages.length - 1 : Math.floor((pages.length - 1) / 2) * 2;
+  const next = clamp(state.diaryIndex + dir * step, 0, maxIndex);
   if (next === state.diaryIndex) return;
   state.diaryIndex = next; sound.paper(); renderDiary();
 }
@@ -7238,24 +7416,48 @@ function catchMosquito(m) {
 }
 function clearMountPage() {
   mountExisting.replaceChildren(); pendingEl.replaceChildren();
-  pendingEl.className = 'pending-specimen'; pendingEl.removeAttribute('style');
+  pendingEl.className = 'pending-specimen'; pendingEl.removeAttribute('style'); pendingEl.style.display = '';
   tapeRoll.classList.remove('is-visible', 'is-nudging'); dragTape.classList.remove('is-dragging'); dragTape.style.width = '0';
   mountPage.querySelectorAll('.temporary-tape').forEach((el) => el.remove());
+}
+function renderMountPage() {
+  const pages = buildPages(entries);
+  state.mountPageIndex = clamp(state.mountPageIndex, 0, pages.length - 1);
+  const page = pages[state.mountPageIndex];
+  mountPageTheme.textContent = DIARY_PAGE_TITLES[state.mountPageIndex % DIARY_PAGE_TITLES.length];
+  mountPageTheme.classList.toggle('is-right', state.mountPageIndex % 2 === 1);
+  mountDate.classList.toggle('is-right', state.mountPageIndex % 2 === 0);
+  if (page.date) {
+    mountDate.textContent = formatDate(page.date); mountDate.dateTime = new Date(page.date).toISOString();
+  } else {
+    mountDate.textContent = `p. ${String(state.mountPageIndex + 1).padStart(3, '0')}`; mountDate.removeAttribute('datetime');
+  }
+  mountExisting.replaceChildren(...diaryArchiveSpecimens(state.mountPageIndex, page.entries.length), ...page.entries.map(specimenElement));
+  mountPageIndicator.textContent = `${state.mountPageIndex + 1} / ${pages.length}`;
+  const locked = state.mode === 'taping';
+  mountPrevButton.disabled = locked || state.mountPageIndex <= 0;
+  mountNextButton.disabled = locked || state.mountPageIndex >= pages.length - 1;
+  if (state.pending?.saved) pendingEl.style.display = 'none';
+  else if (state.pending) pendingEl.style.display = '';
+}
+function turnMountPage(dir) {
+  if (!['mounting', 'mount-finished'].includes(state.mode)) return;
+  const pages = buildPages(entries);
+  const next = clamp(state.mountPageIndex + dir, 0, pages.length - 1);
+  if (next === state.mountPageIndex) return;
+  state.mountPageIndex = next; sound.paper(); renderMountPage();
+  if (state.mode === 'mounting') mountHint.textContent = pages[next].entries.length >= PER_PAGE ? '이 페이지는 가득 찼습니다' : '놓을 곳을 누르세요';
 }
 function openMountPage(seed) {
   state.mode = 'mounting';
   const capturedAt = Date.now();
   state.pending = { id: makeId(), seed, capturedAt, x: 0.5, y: 0.48, rotation: rand(-14, 14), scale: rand(0.86, 1.14), placed: false, saved: false };
+  state.mountPageIndex = pageIndexForNewEntry(capturedAt);
   clearMountPage();
   const img = new Image(); img.alt = '잡은 모기'; img.src = specimenImage(seed);
   pendingEl.append(img);
   pendingEl.style.left = '50%'; pendingEl.style.top = '47%'; pendingEl.style.opacity = '.56';
-  const pageIndex = pageIndexForNewEntry(capturedAt);
-  mountPageTheme.textContent = DIARY_PAGE_TITLES[pageIndex % DIARY_PAGE_TITLES.length];
-  mountPageTheme.classList.toggle('is-right', pageIndex % 2 === 1);
-  mountDate.classList.toggle('is-right', pageIndex % 2 === 0);
-  mountDate.textContent = formatDate(capturedAt); mountDate.dateTime = new Date(capturedAt).toISOString();
-  mountExisting.replaceChildren(...pageForNewEntry(capturedAt).map(specimenElement));
+  renderMountPage();
   mountHint.textContent = '놓을 곳을 누르세요';
   mountOverlay.classList.add('is-open'); mountOverlay.setAttribute('aria-hidden', 'false');
   sound.book();
@@ -7263,33 +7465,28 @@ function openMountPage(seed) {
 }
 function placePending(clientX, clientY) {
   if (state.mode !== 'mounting' || !state.pending || state.pending.placed) return;
+  const page = buildPages(entries)[state.mountPageIndex];
+  if (page.entries.length >= PER_PAGE) { mountHint.textContent = '이 페이지는 가득 찼습니다'; return; }
   const r = mountPage.getBoundingClientRect();
   if (clientX < r.left || clientX > r.right || clientY < r.top || clientY > r.bottom) return;
   const x = clamp((clientX - r.left) / r.width, 0.12, 0.88), y = clamp((clientY - r.top) / r.height, 0.15, 0.83);
-  state.pending.x = x; state.pending.y = y; state.pending.placed = true;
+  state.pending.x = x; state.pending.y = y; state.pending.pageIndex = state.mountPageIndex; state.pending.placed = true;
   pendingEl.style.left = `${x * 100}%`; pendingEl.style.top = `${y * 100}%`; pendingEl.style.opacity = '1';
   pendingEl.style.transform = `translate(-50%, -50%) rotate(${state.pending.rotation}deg) scale(${state.pending.scale})`;
   mountHint.textContent = '테이프를 끌어와 붙이세요';
   tapeRoll.classList.add('is-visible', 'is-nudging');
   state.mode = 'taping';
+  mountPrevButton.disabled = true; mountNextButton.disabled = true;
   sound.paper();
   tapeRoll.focus({ preventScroll: true });
 }
 mountPage.addEventListener('pointerdown', (e) => {
   if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
-  if (state.mode === 'mount-finished') {
-    if (performance.now() >= state.finishReadyAt) finishMount();
-    return;
-  }
+  if (state.mode === 'mount-finished') return;
   if (e.target.closest('#tapeRoll')) return;
   placePending(e.clientX, e.clientY);
 });
 mountPage.addEventListener('keydown', (e) => {
-  if ((e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && state.mode === 'mount-finished') {
-    e.preventDefault();
-    if (performance.now() >= state.finishReadyAt) finishMount();
-    return;
-  }
   if ((e.key === 'Enter' || e.key === ' ') && state.mode === 'mounting') {
     e.preventDefault();
     const r = mountPage.getBoundingClientRect();
@@ -7321,14 +7518,16 @@ function applyTape() {
   pendingEl.prepend(wet); pendingEl.append(strip);
   pendingEl.classList.add('is-flattened');
   tapeRoll.classList.remove('is-visible', 'is-nudging');
-  mountHint.textContent = '눌러서 방으로 돌아가기';
+  mountHint.textContent = '페이지를 넘겨보거나 방으로 돌아가세요';
   sound.tape();
   if (navigator.vibrate) navigator.vibrate([14, 22, 18]);
   state.pending.saved = true;
-  entries.push({ id: state.pending.id, seed: state.pending.seed, capturedAt: state.pending.capturedAt, x: state.pending.x, y: state.pending.y, rotation: state.pending.rotation, scale: state.pending.scale, tapeAngle: angle });
+  entries.push({ id: state.pending.id, seed: state.pending.seed, capturedAt: state.pending.capturedAt, pageIndex: state.pending.pageIndex, x: state.pending.x, y: state.pending.y, rotation: state.pending.rotation, scale: state.pending.scale, tapeAngle: angle });
   saveEntries();
   state.bookPulseUntil = performance.now() + 1800;
-  state.finishReadyAt = performance.now() + 140;
+  mountPrevButton.disabled = state.mountPageIndex <= 0;
+  mountNextButton.disabled = state.mountPageIndex >= buildPages(entries).length - 1;
+  setTimeout(() => { if (state.mode === 'mount-finished' && state.pending?.saved) renderMountPage(); }, reducedMotion ? 30 : 520);
   requestAnimationFrame(() => mountPage.focus({ preventScroll: true }));
 }
 function finishMount() {
@@ -7352,7 +7551,7 @@ function cancelMounting() {
   if (tapePointerId !== null && tapeRoll.hasPointerCapture?.(tapePointerId)) tapeRoll.releasePointerCapture(tapePointerId);
   mountOverlay.classList.remove('is-open'); mountOverlay.setAttribute('aria-hidden', 'true');
   state.pending = null; state.mode = 'room-transition';
-  setSceneInert(false); sound.book();
+  setSceneInert(false); canvas.focus({ preventScroll: true }); sound.book();
   moveCameraHome(() => { clearMountPage(); state.mode = 'room'; applyLayout(); updateBuzz(); canvas.focus({ preventScroll: true }); });
 }
 function dropTape(clientX, clientY) {
@@ -7406,6 +7605,8 @@ tapeRoll.addEventListener('keydown', (e) => {
   if ((e.key === 'Enter' || e.key === ' ') && state.mode === 'taping') { e.preventDefault(); e.stopPropagation(); applyTape(); }
 });
 cancelMountButton.addEventListener('click', cancelMounting);
+mountPrevButton.addEventListener('click', () => turnMountPage(-1));
+mountNextButton.addEventListener('click', () => turnMountPage(1));
 
 /* ───────────────────────── 출판물 열고 닫기 ───────────────────────── */
 const PUBLICATION_SPOTS = [
@@ -7413,13 +7614,14 @@ const PUBLICATION_SPOTS = [
   [.2, .47], [.43, .45], [.67, .48], [.86, .5],
   [.14, .75], [.37, .76], [.62, .73], [.83, .78],
 ];
-function publicationSpecimenElement(def, index, specimenIndex) {
-  const rnd = seededRandom(def.seed + specimenIndex * 97);
+function publicationSpecimenElement(def, index, pageIndex, specimenIndex) {
+  const layoutSeed = def.seed + pageIndex * 1201 + specimenIndex * 97;
+  const rnd = seededRandom(layoutSeed);
   const spot = PUBLICATION_SPOTS[specimenIndex];
   const angleRange = def.tape === 'grid' ? 3 : def.tape === 'dash' ? 17 : 8;
   const entry = {
-    seed: def.seed + specimenIndex,
-    capturedAt: Date.UTC(2026, index, specimenIndex + 1, 12, specimenIndex * 3),
+    seed: def.seed + ((pageIndex * 7 + specimenIndex) % 24),
+    capturedAt: Date.UTC(2026, index, (specimenIndex + pageIndex) % 27 + 1, 12, specimenIndex * 3),
     x: clamp(spot[0] + (rnd() - .5) * .045, .1, .9),
     y: clamp(spot[1] + (rnd() - .5) * .045, .14, .84),
     rotation: (rnd() - .5) * 26,
@@ -7428,22 +7630,35 @@ function publicationSpecimenElement(def, index, specimenIndex) {
   };
   const el = specimenElement(entry);
   el.classList.add('publication-specimen');
+  el.setAttribute('aria-hidden', 'true');
+  const image = el.querySelector('img'); if (image) image.alt = '';
   el.querySelector('.tape-strip')?.classList.add(`publication-tape--${def.tape}`);
   el.querySelector('.specimen-time')?.remove();
   return el;
 }
 function renderPublication(index) {
   const def = PUBLICATIONS[index];
+  state.publicationPageIndex = clamp(state.publicationPageIndex, 0, PUBLICATION_PAGE_COUNT - 1);
   publicationPage.replaceChildren();
-  const folio = document.createElement('p'); folio.className = 'publication-folio'; folio.textContent = def.folio;
+  const folio = document.createElement('p'); folio.className = 'publication-folio';
+  folio.textContent = `${def.folio} · ${state.publicationPageIndex + 1}쪽`;
   publicationPage.append(folio);
-  for (let i = 0; i < PUBLICATION_SPOTS.length; i += 1) publicationPage.append(publicationSpecimenElement(def, index, i));
+  for (let i = 0; i < PUBLICATION_SPOTS.length; i += 1) publicationPage.append(publicationSpecimenElement(def, index, state.publicationPageIndex, i));
+  publicationIndicator.textContent = `${state.publicationPageIndex + 1} / ${PUBLICATION_PAGE_COUNT}`;
+  publicationPrevButton.disabled = state.publicationPageIndex <= 0;
+  publicationNextButton.disabled = state.publicationPageIndex >= PUBLICATION_PAGE_COUNT - 1;
   publicationOverlay.setAttribute('aria-label', `출판물 ${def.folio}`);
-  publicationPage.setAttribute('aria-label', `모기 표본이 붙은 출판물 ${def.folio}`);
+  publicationPage.setAttribute('aria-label', `모기 표본이 붙은 출판물 ${def.folio} ${state.publicationPageIndex + 1}쪽`);
+}
+function turnPublicationPage(dir) {
+  if (state.mode !== 'publication') return;
+  const next = clamp(state.publicationPageIndex + dir, 0, PUBLICATION_PAGE_COUNT - 1);
+  if (next === state.publicationPageIndex) return;
+  state.publicationPageIndex = next; sound.paper(); renderPublication(state.publicationIndex);
 }
 function openPublication(index) {
   if (state.mode !== 'room' || pen.held || state.pointerId !== null || feed.pouring || !PUBLICATIONS[index]) return;
-  state.publicationIndex = index; state.mode = 'publication'; setSceneInert(true);
+  state.publicationIndex = index; state.publicationPageIndex = 0; state.mode = 'publication'; setSceneInert(true);
   state.publicationHovered = null;
   canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book', 'can-use-object');
   stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
@@ -7461,6 +7676,8 @@ publicationButtons.forEach((button) => button.addEventListener('click', () => {
   sound.ensure(); openPublication(Number(button.dataset.publication));
 }));
 closePublicationButton.addEventListener('click', closePublication);
+publicationPrevButton.addEventListener('click', () => turnPublicationPage(-1));
+publicationNextButton.addEventListener('click', () => turnPublicationPage(1));
 publicationOverlay.addEventListener('pointerdown', (e) => { if (e.target === publicationOverlay) closePublication(); });
 
 /* ───────────────────────── 다이어리 열고 닫기 ───────────────────────── */
@@ -7469,7 +7686,7 @@ function openDiary() {
   state.mode = 'diary-transition'; setSceneInert(true);
   state.hasOpenedDiary = true;
   stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
-  state.diaryIndex = Math.max(0, buildPages(entries).length - 1);
+  state.diaryIndex = lastOccupiedDiaryPage();
   sound.book();
   moveCameraToBook(() => {
     state.mode = 'diary'; renderDiary();
@@ -7497,13 +7714,24 @@ diaryOverlay.addEventListener('pointerup', (e) => {
   const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
   if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) turnPage(dx < 0 ? 1 : -1);
 });
+let publicationSwipe = null;
+publicationOverlay.addEventListener('pointerdown', (e) => { if (e.isPrimary) publicationSwipe = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+publicationOverlay.addEventListener('pointerup', (e) => {
+  if (!publicationSwipe || e.pointerId !== publicationSwipe.id) return;
+  const dx = e.clientX - publicationSwipe.x, dy = e.clientY - publicationSwipe.y; publicationSwipe = null;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) turnPublicationPage(dx < 0 ? 1 : -1);
+});
 soundButton.addEventListener('click', () => sound.setMuted(!settings.muted));
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && ['mounting', 'taping', 'mount-finished'].includes(state.mode)) cancelMounting();
   else if (e.key === 'Escape' && state.mode === 'diary') closeDiary();
   else if (e.key === 'Escape' && state.mode === 'publication') closePublication();
+  else if (['mounting', 'mount-finished'].includes(state.mode) && e.key === 'ArrowLeft') turnMountPage(-1);
+  else if (['mounting', 'mount-finished'].includes(state.mode) && e.key === 'ArrowRight') turnMountPage(1);
   else if (state.mode === 'diary' && e.key === 'ArrowLeft') turnPage(-1);
   else if (state.mode === 'diary' && e.key === 'ArrowRight') turnPage(1);
+  else if (state.mode === 'publication' && e.key === 'ArrowLeft') turnPublicationPage(-1);
+  else if (state.mode === 'publication' && e.key === 'ArrowRight') turnPublicationPage(1);
 });
 document.addEventListener('visibilitychange', () => {
   if (!sound.ctx) return;
@@ -7553,17 +7781,20 @@ function frame() {
   diaryCover.rotation.z = damp(diaryCover.rotation.z, lift * 0.14, 10, dt);
   publicationBooks.forEach((book, index) => {
     const hovered = state.publicationHovered === index ? 1 : 0;
-    book.position.z = damp(book.position.z, .38 + hovered * .1, 12, dt);
+    book.position.z = damp(book.position.z, book.userData.restZ + hovered * .1, 12, dt);
     book.rotation.z = damp(book.rotation.z, hovered * (index === 1 ? -.025 : .025), 12, dt);
   });
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 window.addEventListener('resize', () => {
+  if (state.pointerId !== null) clearActivePointer();
   renderer.setPixelRatio(pixelRatio());
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   applyLayout();
   if (state.mode === 'diary') renderDiary();
+  else if (state.mode === 'publication') renderPublication(state.publicationIndex);
+  else if (['mounting', 'mount-finished'].includes(state.mode)) renderMountPage();
 });
 frame();
 
