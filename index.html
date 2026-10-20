@@ -6556,7 +6556,9 @@ function feedInput() {
   }
   feed.pouring = true; feed.startedAt = now; feed.duration = reducedMotion ? 420 : 1250;
   feed.wobbleUntil = 0; feedGroup.updateMatrixWorld(true);
-  const mouth = new Vector3(-0.2, 1.48, 0.04).applyMatrix4(bottlePivot.matrixWorld);
+  const mouth = new Vector3(-0.2, 1.48, 0.04)
+    .applyAxisAngle(new Vector3(0, 0, 1), .88)
+    .applyMatrix4(feedGroup.matrixWorld);
   const rnd = seededRandom(Math.floor(now));
   for (let i = 0; i < feed.particles.length; i += 1) {
     const p = feed.particles[i], u = p.userData;
@@ -6643,7 +6645,7 @@ for (const x of [-1.82, 1.82]) {
 const publicationBooks = [], publicationHits = [];
 PUBLICATIONS.forEach((def, index) => {
   const x = (index - 1) * 1.12;
-  const book = new Group(); book.position.set(x, 1.34, .38);
+  const book = new Group(); book.position.set(x, 1.09, .38);
   const block = new Mesh(new BoxGeometry(.84, 1.66, .14), new MeshStandardMaterial({ color: def.cover, roughness: .7 }));
   block.castShadow = true; book.add(block);
   const coverArt = new Mesh(new PlaneGeometry(.77, 1.55), new MeshStandardMaterial({ map: makePublicationCoverTexture(def, index), roughness: .74 }));
@@ -7452,7 +7454,7 @@ function openPublication(index) {
 function closePublication() {
   if (state.mode !== 'publication') return;
   publicationOverlay.classList.remove('is-open'); publicationOverlay.setAttribute('aria-hidden', 'true');
-  state.mode = 'room'; setSceneInert(false); updateBuzz(); sound.book();
+  state.mode = 'room'; setSceneInert(false); applyLayout(); updateBuzz(); sound.book();
   canvas.focus({ preventScroll: true });
 }
 publicationButtons.forEach((button) => button.addEventListener('click', () => {
