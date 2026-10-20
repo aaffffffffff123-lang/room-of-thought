@@ -4293,7 +4293,7 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
 #scene:focus-visible { box-shadow: inset 0 0 0 3px rgba(246, 240, 228, .45); }
 #scene.is-dragging { cursor: grabbing; }
 #scene.can-grab-pen { cursor: grab; }
-#scene.can-catch, #scene.can-open-book { cursor: pointer; }
+#scene.can-catch, #scene.can-open-book, #scene.can-use-object { cursor: pointer; }
 
 /* 입구: 벽과 거의 한 몸인 피벗도어. 열린 틈으로 실제 3D 방이 그대로 보인다. */
 #entrance {
@@ -4493,6 +4493,16 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
   position: absolute; top: 5%; left: 7%; color: rgba(54, 49, 42, .62);
   font-family: var(--serif); font-size: clamp(13px, 1.5vw, 18px); letter-spacing: .08em;
 }
+.page-date.is-right { left: auto; right: 7%; text-align: right; }
+
+.page-theme {
+  position: absolute; top: 5%; left: 7%; margin: 0; max-width: 52%;
+  color: rgba(91, 81, 68, .43); font-family: var(--serif);
+  font-size: clamp(11px, 1.15vw, 15px); font-weight: 400; line-height: 1.2;
+  letter-spacing: .07em; white-space: nowrap; mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.page-theme.is-right { left: auto; right: 7%; text-align: right; }
 
 .mount-hint {
   position: absolute; left: 50%; bottom: 4.5%; z-index: 8; margin: 0;
@@ -4534,6 +4544,41 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
   background-position: 0 0, 0 50%; background-size: 100% 100%, 88px 30px;
   box-shadow: 0 1px 2px rgba(72, 61, 33, .13), inset 0 0 0 .5px rgba(255, 255, 255, .24);
   pointer-events: none;
+}
+
+/* 출판물 안의 테이프는 문체의 차이만 무늬로 남긴다. 다이어리의 꽃무늬는 건드리지 않는다. */
+.publication-tape--grid {
+  background-color: rgba(220, 226, 226, .84);
+  background-image:
+    linear-gradient(102deg, rgba(255,255,255,.45), transparent 22% 76%, rgba(255,255,255,.32)),
+    repeating-linear-gradient(90deg, rgba(45, 62, 66, .62) 0 1px, transparent 1px 13px),
+    repeating-linear-gradient(0deg, rgba(45, 62, 66, .34) 0 1px, transparent 1px 8px);
+  background-size: 100% 100%, 100% 100%, 100% 100%;
+}
+.publication-tape--dash {
+  background-color: rgba(239, 218, 188, .88);
+  background-image:
+    linear-gradient(102deg, rgba(255,255,255,.46), transparent 22% 76%, rgba(255,255,255,.3)),
+    repeating-linear-gradient(128deg, rgba(143, 52, 39, .7) 0 5px, transparent 5px 13px);
+  background-size: 100% 100%, 100% 100%;
+}
+.publication-tape--dot {
+  background-color: rgba(210, 222, 199, .88);
+  background-image:
+    linear-gradient(102deg, rgba(255,255,255,.48), transparent 22% 76%, rgba(255,255,255,.3)),
+    radial-gradient(circle, rgba(54, 82, 106, .72) 0 2px, transparent 2.4px);
+  background-size: 100% 100%, 13px 13px;
+}
+
+.publication-book { width: min(88vw, 620px); }
+.publication-page { left: 2.2%; right: 2.2%; cursor: default; }
+.publication-page .saved-specimen { width: clamp(54px, 7.7vw, 84px); }
+.publication-page .specimen-time { display: none; }
+.publication-page .wet-mark { opacity: .72; }
+.publication-folio {
+  position: absolute; top: 5%; right: 7%; margin: 0;
+  color: rgba(54, 49, 42, .5); font-family: var(--serif);
+  font-size: clamp(12px, 1.25vw, 16px); letter-spacing: .18em;
 }
 
 .tape-roll {
@@ -4665,15 +4710,18 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
         </div>
       </section>
 
-      <p id="sceneHelp" class="sr-only">보이는 볼펜을 직접 잡아 맨홀 속을 휘저으면 모기떼가 날아오릅니다. 날아오른 모기는 눌러서 잡습니다. 키보드에서는 스페이스바로 맨홀을 휘젓고, M 키로 가장 가까운 모기를 잡고, D 키로 다이어리를 엽니다.</p>
-      <canvas id="scene" tabindex="0" aria-describedby="sceneHelp" aria-label="가운데 바닥에 뚜껑이 열린 맨홀과 커다란 볼펜이 놓인 전시장" aria-hidden="true" inert></canvas>
+      <p id="sceneHelp" class="sr-only">INPUT 사료통을 눌러 먹이를 넣은 다음, 보이는 볼펜을 직접 잡아 맨홀 속을 휘저으면 모기떼가 날아오릅니다. 날아오른 모기는 눌러서 잡습니다. 다이어리와 벽의 출판물도 열어볼 수 있습니다. 키보드에서는 I 키로 먹이를 넣고, 스페이스바로 맨홀을 휘젓고, M 키로 가장 가까운 모기를 잡고, D 키로 다이어리를 열며, 숫자 1부터 3으로 출판물을 엽니다.</p>
+      <canvas id="scene" tabindex="0" aria-describedby="sceneHelp" aria-label="가운데 열린 맨홀, 커다란 볼펜, INPUT 사료통, 다이어리와 책꽂이가 놓인 전시장" aria-hidden="true" inert></canvas>
 
       <a id="arcadeFace" href="https://aaffffffffff123-lang.github.io/arcade/" target="_top" aria-label="혐규오락실 — 다른 게임 하러 가기" title="혐규오락실" aria-hidden="true" inert><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24.00 2.84 C27.19 2.93 30.48 3.49 33.44 4.70 C36.39 5.91 39.79 7.65 41.72 10.08 C43.64 12.51 44.41 16.18 44.97 19.28 C45.53 22.39 45.73 25.72 45.08 28.74 C44.42 31.76 43.07 35.11 41.06 37.40 C39.05 39.69 35.87 41.15 33.03 42.47 C30.19 43.79 27.09 45.14 24.00 45.31 C20.91 45.47 17.40 44.72 14.49 43.46 C11.58 42.19 8.30 40.21 6.54 37.72 C4.78 35.22 4.45 31.57 3.93 28.51 C3.41 25.45 2.76 22.23 3.42 19.37 C4.08 16.52 6.10 13.90 7.91 11.36 C9.72 8.82 11.61 5.56 14.29 4.14 C16.97 2.72 20.81 2.75 24.00 2.84 Z" fill="#221D1F"/><g stroke="#EFF1EC" stroke-width="2.2" stroke-linecap="round" fill="none"><path d="M13.2 8.4V17.9"/><path d="M20.4 6.2V16.6"/><path d="M27.6 6.2V16.6"/><path d="M34.6 8.8V18.3"/></g><g fill="#EFF1EC"><ellipse cx="18.1" cy="25.2" rx="2" ry="2.3"/><ellipse cx="29.9" cy="25.2" rx="2" ry="2.3"/></g><path d="M19.9 32.3a4.6 4.6 0 0 0 8.2 0" fill="none" stroke="#EFF1EC" stroke-width="2.3" stroke-linecap="round"/></svg></a>
 
-      <p id="hint" class="hint" role="status" aria-hidden="true">볼펜을 끌어 맨홀 속을 휘저으세요</p>
+      <p id="hint" class="hint" role="status" aria-hidden="true">INPUT을 눌러 넣으세요</p>
 
       <nav class="scene-actions" aria-label="작품 도구" aria-hidden="true" inert>
         <button id="diaryButton" class="sr-only" type="button">다이어리 열기</button>
+        <button class="sr-only publication-button" type="button" data-publication="0">출판물 제1호 열기</button>
+        <button class="sr-only publication-button" type="button" data-publication="1">출판물 제2호 열기</button>
+        <button class="sr-only publication-button" type="button" data-publication="2">출판물 제3호 열기</button>
         <button id="soundButton" class="quiet-button sound-button" type="button" aria-pressed="false">소리 끄기</button>
       </nav>
 
@@ -4681,6 +4729,7 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
         <button id="cancelMount" class="close-book" type="button" aria-label="붙이기를 그만두고 방으로 돌아가기">방으로</button>
         <div class="book-shell mounting-book">
           <div id="mountPage" class="paper mount-page" tabindex="0" aria-describedby="mountHint" aria-label="모기를 붙일 다이어리 페이지">
+            <p id="mountPageTheme" class="page-theme"></p>
             <time id="mountDate" class="page-date"></time>
             <div id="mountExisting" class="mount-existing" aria-hidden="true"></div>
             <div id="pendingSpecimen" class="pending-specimen" aria-hidden="true"></div>
@@ -4704,6 +4753,13 @@ button, [role=button] { -webkit-tap-highlight-color: transparent; font: inherit;
           <button id="prevPage" type="button" aria-label="이전 페이지">이전</button>
           <span id="pageIndicator"></span>
           <button id="nextPage" type="button" aria-label="다음 페이지">다음</button>
+        </div>
+      </section>
+
+      <section id="publicationOverlay" class="overlay publication-overlay" role="dialog" aria-modal="true" aria-label="출판물" aria-hidden="true" tabindex="-1">
+        <button id="closePublication" class="close-book" type="button" aria-label="출판물을 덮고 방으로 돌아가기">방으로</button>
+        <div class="book-shell mounting-book publication-book">
+          <article id="publicationPage" class="paper mount-page publication-page" aria-label="출판물 표본 페이지"></article>
         </div>
       </section>
 
@@ -4736,6 +4792,7 @@ const sceneActions = document.querySelector('.scene-actions');
 const mountOverlay = document.querySelector('#mountOverlay');
 const cancelMountButton = document.querySelector('#cancelMount');
 const mountPage = document.querySelector('#mountPage');
+const mountPageTheme = document.querySelector('#mountPageTheme');
 const mountDate = document.querySelector('#mountDate');
 const mountExisting = document.querySelector('#mountExisting');
 const mountHint = document.querySelector('#mountHint');
@@ -4749,6 +4806,10 @@ const rightPage = document.querySelector('#rightPage');
 const prevButton = document.querySelector('#prevPage');
 const nextButton = document.querySelector('#nextPage');
 const pageIndicator = document.querySelector('#pageIndicator');
+const publicationOverlay = document.querySelector('#publicationOverlay');
+const closePublicationButton = document.querySelector('#closePublication');
+const publicationPage = document.querySelector('#publicationPage');
+const publicationButtons = [...document.querySelectorAll('.publication-button')];
 const fallbackEl = document.querySelector('#noscriptFallback');
 
 /* ───────────────────────── 상수 ───────────────────────── */
@@ -4770,6 +4831,12 @@ const MOSQUITO_MAX = 160;
 const MOSQUITO_MAX_MOBILE = 128;
 const LARVA_COUNT = 26;
 const PER_PAGE = 8;       // 다이어리 한 장에 붙는 최대 마리 수 (같은 날짜 안에서)
+const DIARY_PAGE_TITLES = ['생각과 거리두기', '감정에 이름 붙이기', '인지적 탈융합'];
+const PUBLICATIONS = [
+  { folio: '제 1 호', tape: 'grid', cover: 0x38474b, ink: '#d9ded8', seed: 31001 },
+  { folio: '제 2 호', tape: 'dash', cover: 0x824b3f, ink: '#f0dfc7', seed: 32001 },
+  { folio: '제 3 호', tape: 'dot', cover: 0x667153, ink: '#e5e0c9', seed: 33001 },
+];
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -4833,11 +4900,12 @@ const state = {
   pointerType: 'mouse',
   pointerStartX: 0, pointerStartY: 0,
   penDragging: false,
-  tapMosquito: null, tapBook: false,
+  tapMosquito: null, tapFeed: false, tapBook: false, tapPublication: null,
+  feedHovered: false, publicationHovered: null,
   bookHovered: false, bookPulseUntil: 0,
   pending: null,
   tapeDragging: false, tapePointerId: null, tapeStartX: 0, tapeStartY: 0,
-  diaryIndex: 0,
+  diaryIndex: 0, publicationIndex: 0,
   finishReadyAt: 0,
   hasStirred: false,
   shownCatchHint: false, shownDiaryHint: false,
@@ -5110,6 +5178,10 @@ class SoundKit {
   tape() {
     this.noiseBurst({ duration: 0.3, gain: 0.12, lowpass: 5200, highpass: 900, attack: 0.003 });
     this.tone({ from: 120, to: 55, duration: 0.1, gain: 0.12, type: 'sine', delay: 0.19 });
+  }
+  feed() {
+    this.noiseBurst({ duration: 0.46, gain: 0.075, lowpass: 4600, highpass: 620, attack: 0.004 });
+    this.noiseBurst({ duration: 0.22, gain: 0.045, lowpass: 2600, highpass: 480, attack: 0.006 });
   }
   paper() { this.noiseBurst({ duration: 0.22, gain: 0.04, lowpass: 2400, attack: 0.02 }); }
   book() {
@@ -6365,6 +6437,223 @@ bookHit.position.y = 0.2;
 diaryStand.add(bookHit);
 scene.add(diaryStand);
 
+/* ───────────────────────── INPUT 사료통 ───────────────────────── */
+function makeFishFoodLabelTexture() {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 720;
+  const g = c.getContext('2d');
+  g.fillStyle = '#69b9d4'; g.fillRect(0, 0, 512, 720);
+  const sky = g.createLinearGradient(0, 0, 0, 520);
+  sky.addColorStop(0, '#91d3e6'); sky.addColorStop(1, '#e7f4ec');
+  g.fillStyle = sky; g.fillRect(18, 18, 476, 510);
+  g.fillStyle = '#df6335'; g.fillRect(0, 520, 512, 200);
+  g.fillStyle = 'rgba(255,255,255,.92)';
+  g.font = '700 52px "Noto Sans KR", sans-serif'; g.textAlign = 'center';
+  g.fillText('금붕어 사료', 256, 92);
+  const fish = (x, y, s, color, flip = 1) => {
+    g.save(); g.translate(x, y); g.scale(flip * s, s);
+    g.fillStyle = color;
+    g.beginPath(); g.ellipse(0, 0, 82, 48, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.moveTo(-65, 0); g.lineTo(-128, -58); g.lineTo(-116, 12); g.lineTo(-132, 66); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(255,235,186,.72)';
+    g.beginPath(); g.ellipse(20, 8, 48, 26, -.2, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#191615'; g.beginPath(); g.arc(48, -12, 7, 0, Math.PI * 2); g.fill();
+    g.restore();
+  };
+  fish(266, 286, 1.02, '#e24a22', 1);
+  fish(188, 408, .55, '#d79125', -1);
+  g.fillStyle = 'rgba(255,255,255,.96)';
+  g.font = '700 34px "Noto Sans KR", sans-serif';
+  g.fillText('성장 촉진 · 면역 강화', 256, 588);
+  g.font = '500 27px "Noto Sans KR", sans-serif';
+  g.fillText('선명한 발색 · 높은 부상성', 256, 640);
+  const t = new CanvasTexture(c); t.colorSpace = SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+function makeInputStickerTexture() {
+  const c = document.createElement('canvas'); c.width = 640; c.height = 220;
+  const g = c.getContext('2d');
+  g.fillStyle = '#f7f5ed'; g.fillRect(7, 9, 626, 202);
+  g.strokeStyle = 'rgba(91,82,68,.2)'; g.lineWidth = 5; g.strokeRect(7, 9, 626, 202);
+  g.fillStyle = '#171717'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '700 128px "Comic Sans MS", "Bradley Hand", cursive';
+  g.fillText('INPUT', 318, 115);
+  const t = new CanvasTexture(c); t.colorSpace = SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+
+const feed = {
+  ready: false, pouring: false, startedAt: 0, duration: 1250,
+  wobbleUntil: 0, nextNeedHintAt: 0, particles: [], floating: [],
+};
+const feedGroup = new Group();
+const bottlePivot = new Group();
+feedGroup.add(bottlePivot);
+const feedPlastic = new MeshStandardMaterial({ color: 0xf3f1e9, roughness: 0.58, metalness: 0.02 });
+const feedBody = new Mesh(new CylinderGeometry(0.34, 0.34, 1.22, 28), feedPlastic);
+feedBody.position.y = 0.63; feedBody.castShadow = true; feedBody.receiveShadow = true;
+bottlePivot.add(feedBody);
+const feedShoulder = new Mesh(new CylinderGeometry(0.31, 0.34, 0.16, 28), feedPlastic);
+feedShoulder.position.y = 1.28; feedShoulder.castShadow = true;
+bottlePivot.add(feedShoulder);
+const feedLid = new Mesh(new CylinderGeometry(0.325, 0.325, 0.2, 28), new MeshStandardMaterial({ color: 0xf7f6f1, roughness: 0.48 }));
+feedLid.position.y = 1.43; feedLid.castShadow = true;
+bottlePivot.add(feedLid);
+for (let i = 0; i < 10; i += 1) {
+  const ridge = new Mesh(new BoxGeometry(0.018, 0.13, 0.035), feedPlastic);
+  const a = i / 10 * Math.PI * 2;
+  ridge.position.set(Math.sin(a) * 0.326, 1.43, Math.cos(a) * 0.326);
+  ridge.rotation.y = a; bottlePivot.add(ridge);
+}
+const feedLabel = new Mesh(new PlaneGeometry(0.63, 0.88), new MeshStandardMaterial({ map: makeFishFoodLabelTexture(), roughness: 0.72 }));
+feedLabel.position.set(0, 0.71, 0.348); bottlePivot.add(feedLabel);
+const inputSticker = new Mesh(new PlaneGeometry(0.55, 0.19), new MeshStandardMaterial({ map: makeInputStickerTexture(), transparent: true, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2 }));
+inputSticker.position.set(0.015, 0.94, 0.36); inputSticker.rotation.z = -0.075; bottlePivot.add(inputSticker);
+
+const spoon = new Group();
+const spoonBowl = new Mesh(new SphereGeometry(0.15, 16, 9), feedPlastic);
+spoonBowl.scale.set(1, 0.18, 1.35); spoonBowl.position.set(0.43, 0.035, 0.3); spoon.add(spoonBowl);
+const spoonHandle = new Mesh(new BoxGeometry(0.62, 0.035, 0.065), feedPlastic);
+spoonHandle.position.set(0.78, 0.04, 0.57); spoonHandle.rotation.y = -0.56; spoon.add(spoonHandle);
+feedGroup.add(spoon);
+
+const pelletGeometry = new SphereGeometry(0.027, 7, 5);
+const pelletMaterial = new MeshStandardMaterial({ color: 0x604223, roughness: 0.95 });
+const spillRnd = seededRandom(2037);
+for (let i = 0; i < 17; i += 1) {
+  const pellet = new Mesh(pelletGeometry, pelletMaterial);
+  pellet.position.set(0.31 + spillRnd() * 0.86, 0.022 + spillRnd() * 0.012, 0.05 + spillRnd() * 0.86);
+  pellet.scale.setScalar(0.72 + spillRnd() * 0.5);
+  feedGroup.add(pellet);
+}
+const feedHit = new Mesh(new BoxGeometry(1.55, 1.8, 1.35), hitMaterial);
+feedHit.position.set(0.28, 0.78, 0.2); feedGroup.add(feedHit);
+scene.add(feedGroup);
+
+for (let i = 0; i < 18; i += 1) {
+  const pellet = new Mesh(pelletGeometry, pelletMaterial);
+  pellet.visible = false;
+  pellet.userData = { start: new Vector3(), control: new Vector3(), end: new Vector3(), delay: 0, duration: 1, landed: false };
+  scene.add(pellet); feed.particles.push(pellet);
+}
+const floatRnd = seededRandom(7719);
+for (let i = 0; i < 11; i += 1) {
+  const pellet = new Mesh(pelletGeometry, pelletMaterial);
+  const a = floatRnd() * Math.PI * 2, r = 0.18 + floatRnd() * 0.72;
+  pellet.position.set(Math.cos(a) * r, WATER_Y + 0.035, Math.sin(a) * r);
+  pellet.scale.setScalar(0.68 + floatRnd() * 0.45); pellet.visible = false;
+  manhole.add(pellet); feed.floating.push(pellet);
+}
+
+function feedInput() {
+  if (state.mode !== 'room' || feed.pouring) return;
+  sound.ensure();
+  const now = performance.now();
+  if (feed.ready) {
+    feed.wobbleUntil = now + 380; sound.feed();
+    return;
+  }
+  feed.pouring = true; feed.startedAt = now; feed.duration = reducedMotion ? 420 : 1250;
+  feed.wobbleUntil = 0; feedGroup.updateMatrixWorld(true);
+  const mouth = new Vector3(-0.2, 1.48, 0.04).applyMatrix4(bottlePivot.matrixWorld);
+  const rnd = seededRandom(Math.floor(now));
+  for (let i = 0; i < feed.particles.length; i += 1) {
+    const p = feed.particles[i], u = p.userData;
+    u.start.copy(mouth).add(new Vector3((rnd() - .5) * .1, (rnd() - .5) * .06, (rnd() - .5) * .1));
+    const a = rnd() * Math.PI * 2, r = 0.12 + rnd() * 0.83;
+    u.end.set(Math.cos(a) * r, WATER_Y + 0.055, Math.sin(a) * r);
+    u.control.copy(u.start).lerp(u.end, .48); u.control.y = 1.05 + rnd() * .48;
+    u.delay = (reducedMotion ? 70 : 300) + i * (reducedMotion ? 5 : 22) + rnd() * 80;
+    u.duration = reducedMotion ? 180 : 500 + rnd() * 260; u.landed = false;
+    p.position.copy(u.start); p.visible = true;
+  }
+  sound.feed();
+  if (navigator.vibrate) navigator.vibrate(8);
+}
+function consumeFeedCharge() {
+  feed.ready = false;
+  for (const p of feed.floating) p.visible = false;
+}
+function updateFeed(dt, now) {
+  const wobble = now < feed.wobbleUntil ? Math.sin((feed.wobbleUntil - now) * .075) * .045 : 0;
+  if (!feed.pouring) {
+    bottlePivot.rotation.z = damp(bottlePivot.rotation.z, wobble, 15, dt);
+    return;
+  }
+  const elapsedMs = now - feed.startedAt;
+  const q = clamp(elapsedMs / feed.duration, 0, 1);
+  let tilt;
+  if (q < .28) tilt = (1 - Math.pow(1 - q / .28, 3)) * .88;
+  else if (q < .74) tilt = .88;
+  else tilt = .88 * (1 - (q - .74) / .26);
+  bottlePivot.rotation.z = tilt;
+  let remaining = 0;
+  for (let i = 0; i < feed.particles.length; i += 1) {
+    const p = feed.particles[i], u = p.userData;
+    if (u.landed) continue;
+    const t = clamp((elapsedMs - u.delay) / u.duration, 0, 1);
+    if (elapsedMs < u.delay) { remaining += 1; continue; }
+    if (t >= 1) {
+      u.landed = true; p.visible = false;
+      if (i % 3 === 0) { spawnRipple(u.end.x, u.end.z, .32); spawnBubble(u.end.x, u.end.z); }
+      continue;
+    }
+    const inv = 1 - t;
+    p.position.set(
+      inv * inv * u.start.x + 2 * inv * t * u.control.x + t * t * u.end.x,
+      inv * inv * u.start.y + 2 * inv * t * u.control.y + t * t * u.end.y,
+      inv * inv * u.start.z + 2 * inv * t * u.control.z + t * t * u.end.z,
+    );
+    p.rotation.x += .18; p.rotation.z += .13; remaining += 1;
+  }
+  if (q >= 1 && remaining === 0) {
+    feed.pouring = false; feed.ready = true; bottlePivot.rotation.z = 0;
+    for (const p of feed.floating) p.visible = true;
+    waterPulse(new Vector3(0, WATER_Y, 0), .32);
+    showHint('볼펜을 끌어 맨홀 속을 휘저으세요', 4800);
+  }
+}
+
+/* ───────────────────────── 출판물 책꽂이 ───────────────────────── */
+function makePublicationCoverTexture(def, index) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 768;
+  const g = c.getContext('2d');
+  g.fillStyle = `#${def.cover.toString(16).padStart(6, '0')}`; g.fillRect(0, 0, c.width, c.height);
+  g.strokeStyle = 'rgba(239,232,211,.22)'; g.lineWidth = 4; g.strokeRect(35, 35, 442, 698);
+  g.fillStyle = def.ink; g.textAlign = 'center';
+  g.font = '400 46px "Nanum Myeongjo", serif'; g.fillText('사유의 방', 256, 150);
+  g.font = '400 210px Georgia, serif'; g.fillText(['I', 'II', 'III'][index], 256, 440);
+  g.font = '500 25px Arial, sans-serif'; g.letterSpacing = '4px'; g.fillText('PUBLICATION', 256, 650);
+  const t = new CanvasTexture(c); t.colorSpace = SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t;
+}
+const publicationShelf = new Group();
+const shelfWood = new MeshStandardMaterial({ color: 0x4a3629, roughness: 0.74 });
+const shelfBack = new Mesh(new BoxGeometry(3.55, 2.35, 0.13), shelfWood);
+shelfBack.position.set(0, 1.35, 0); shelfBack.castShadow = true; shelfBack.receiveShadow = true; publicationShelf.add(shelfBack);
+for (const y of [0.17, 2.53]) {
+  const board = new Mesh(new BoxGeometry(3.78, 0.14, 0.58), shelfWood);
+  board.position.set(0, y, .18); board.castShadow = true; publicationShelf.add(board);
+}
+for (const x of [-1.82, 1.82]) {
+  const side = new Mesh(new BoxGeometry(0.14, 2.5, 0.58), shelfWood);
+  side.position.set(x, 1.35, .18); side.castShadow = true; publicationShelf.add(side);
+}
+const publicationBooks = [], publicationHits = [];
+PUBLICATIONS.forEach((def, index) => {
+  const x = (index - 1) * 1.12;
+  const book = new Group(); book.position.set(x, 1.34, .38);
+  const block = new Mesh(new BoxGeometry(.84, 1.66, .14), new MeshStandardMaterial({ color: def.cover, roughness: .7 }));
+  block.castShadow = true; book.add(block);
+  const coverArt = new Mesh(new PlaneGeometry(.77, 1.55), new MeshStandardMaterial({ map: makePublicationCoverTexture(def, index), roughness: .74 }));
+  coverArt.position.z = .076; book.add(coverArt);
+  const hit = new Mesh(new BoxGeometry(1.02, 1.9, .36), hitMaterial);
+  hit.position.z = .08; hit.userData.publicationIndex = index; book.add(hit);
+  publicationShelf.add(book); publicationBooks.push(book); publicationHits.push(hit);
+});
+scene.add(publicationShelf);
+
 /* ───────────────────────── 화면 비율별 배치 ───────────────────────── */
 let layoutName = '';
 function applyLayout() {
@@ -6375,6 +6664,8 @@ function applyLayout() {
     name = 'portrait';
     camera.fov = 52; cameraHome.set(0, 7.6, 10.4); lookHome.set(0, 0.35, -0.75);
     diaryStand.position.set(-1.15, 0.8, 2.55); diaryStand.rotation.y = 0.32;
+    feedGroup.position.set(2.0, 0, -1.05); feedGroup.scale.setScalar(.88);
+    publicationShelf.position.set(2.45, .48, WALL_Z + .34); publicationShelf.scale.setScalar(.72);
     cover.position.set(1.25, 0.07, -2.95); cover.rotation.y = 0.4;
     pen.restTip.set(0.72, PEN_HOVER_Y, 1.72); pen.restDir.set(0.3, 0.14, 0.94).normalize();
     wallText.position.y = 2.15;
@@ -6382,6 +6673,8 @@ function applyLayout() {
     name = 'wide';
     camera.fov = 41; cameraHome.set(0, 5.5, 9.2); lookHome.set(0, 0.3, -0.45);
     diaryStand.position.set(-3.25, 0.8, 0.55); diaryStand.rotation.y = 0.18;
+    feedGroup.position.set(2.15, 0, -1.25); feedGroup.scale.setScalar(1);
+    publicationShelf.position.set(4.75, .54, WALL_Z + .34); publicationShelf.scale.setScalar(.92);
     cover.position.set(2.95, 0.07, 0.4); cover.rotation.y = -0.2;
     pen.restTip.set(1.3, PEN_HOVER_Y, 1.75); pen.restDir.set(0.72, 0.17, 0.67).normalize();
     wallText.position.y = 1.95;
@@ -6389,6 +6682,8 @@ function applyLayout() {
     name = 'standard';
     camera.fov = 44; cameraHome.set(0, 5.7, 9.2); lookHome.set(0, 0.2, -0.5);
     diaryStand.position.set(-3.15, 0.8, 0.6); diaryStand.rotation.y = 0.18;
+    feedGroup.position.set(2.15, 0, -1.25); feedGroup.scale.setScalar(1);
+    publicationShelf.position.set(4.35, .54, WALL_Z + .34); publicationShelf.scale.setScalar(.9);
     cover.position.set(2.9, 0.07, 0.4); cover.rotation.y = -0.2;
     pen.restTip.set(1.25, PEN_HOVER_Y, 1.8); pen.restDir.set(0.7, 0.17, 0.69).normalize();
     wallText.position.y = 2.15;
@@ -6465,6 +6760,17 @@ function bookAtPointer(clientX, clientY) {
   raycaster.setFromCamera(ndc, camera);
   return raycaster.intersectObject(bookHit, false).length > 0;
 }
+function feedAtPointer(clientX, clientY) {
+  setNdc(clientX, clientY);
+  raycaster.setFromCamera(ndc, camera);
+  return raycaster.intersectObject(feedHit, false).length > 0;
+}
+function publicationAtPointer(clientX, clientY) {
+  setNdc(clientX, clientY);
+  raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObjects(publicationHits, false)[0];
+  return hit ? hit.object.userData.publicationIndex : null;
+}
 
 /* ───────────────────────── 안내 문구 ───────────────────────── */
 function showHint(text, ms = 3600) {
@@ -6486,6 +6792,7 @@ function queueOutbreak(now) {
   cancelQuietVanishes();
   const missing = Math.max(0, outbreakLimit() - activeMosquitoes().length - stir.pending.length);
   if (missing < 1) return false;
+  consumeFeedCharge();
   stir.keepCount = 3 + Math.floor(Math.random() * 2);
   stir.phase = 'outbreak'; stir.burstLocked = true; stir.burstCharge = 0; stir.idleTime = 0; stir.idleStartedAt = 0;
   stir.nextVanishAt = 0; stir.soundWave = -1;
@@ -6536,7 +6843,18 @@ function stirWater(dt, now) {
     stir.idleTime = 0; stir.idleStartedAt = 0;
     stir.nextVanishAt = 0;
     stir.burstCharge += speed * dt;
-    if (!stir.burstLocked && stir.burstCharge >= 0.55) queueOutbreak(now);
+    if (!stir.burstLocked && stir.burstCharge >= 0.55) {
+      if (feed.ready) {
+        if (!queueOutbreak(now)) { stir.burstLocked = true; stir.burstCharge = 0; }
+      } else {
+        stir.burstLocked = true; stir.burstCharge = 0;
+        feed.wobbleUntil = now + 520;
+        if (now >= feed.nextNeedHintAt) {
+          feed.nextNeedHintAt = now + 2600;
+          showHint('INPUT이 필요합니다', 2200);
+        }
+      }
+    }
   } else if (state.mode === 'room') {
     if (!stir.idleStartedAt) stir.idleStartedAt = now;
     stir.idleTime = (now - stir.idleStartedAt) / 1000;
@@ -6610,7 +6928,9 @@ function clearActivePointer() {
   const pointerId = state.pointerId;
   if (state.penDragging) endPenDrag();
   state.tapMosquito = null;
+  state.tapFeed = false;
   state.tapBook = false;
+  state.tapPublication = null;
   state.pointerId = null;
   if (pointerId !== null && canvas.hasPointerCapture?.(pointerId)) canvas.releasePointerCapture(pointerId);
 }
@@ -6618,13 +6938,15 @@ function onCanvasPointerDown(e) {
   if (state.mode !== 'room' || state.pointerId !== null || !e.isPrimary) return;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   const wantsMosquito = mosquitoAtPointer(e.clientX, e.clientY, e.pointerType);
-  const wantsBook = !wantsMosquito && bookAtPointer(e.clientX, e.clientY);
-  const wantsPen = !wantsMosquito && !wantsBook && penAtPointer(e.clientX, e.clientY);
-  if (!wantsMosquito && !wantsBook && !wantsPen) return;
+  const wantsFeed = !wantsMosquito && feedAtPointer(e.clientX, e.clientY);
+  const wantsBook = !wantsMosquito && !wantsFeed && bookAtPointer(e.clientX, e.clientY);
+  const wantsPublication = !wantsMosquito && !wantsFeed && !wantsBook ? publicationAtPointer(e.clientX, e.clientY) : null;
+  const wantsPen = !wantsMosquito && !wantsFeed && !wantsBook && wantsPublication === null && penAtPointer(e.clientX, e.clientY);
+  if (!wantsMosquito && !wantsFeed && !wantsBook && wantsPublication === null && !wantsPen) return;
   sound.ensure();
   state.pointerId = e.pointerId; state.pointerType = e.pointerType;
   state.pointerStartX = e.clientX; state.pointerStartY = e.clientY;
-  state.tapMosquito = wantsMosquito; state.tapBook = wantsBook;
+  state.tapMosquito = wantsMosquito; state.tapFeed = wantsFeed; state.tapBook = wantsBook; state.tapPublication = wantsPublication;
   if (wantsPen && !beginPenDrag(e)) {
     state.pointerId = null;
     return;
@@ -6638,29 +6960,38 @@ function onCanvasPointerMove(e) {
     pen.inWater = info.inWater;
     return;
   }
-  if (e.pointerId === state.pointerId && (state.tapMosquito || state.tapBook)) {
+  if (e.pointerId === state.pointerId && (state.tapMosquito || state.tapFeed || state.tapBook || state.tapPublication !== null)) {
     const moved = Math.hypot(e.clientX - state.pointerStartX, e.clientY - state.pointerStartY);
-    if (moved > 18) { state.tapMosquito = null; state.tapBook = false; }
+    if (moved > 18) { state.tapMosquito = null; state.tapFeed = false; state.tapBook = false; state.tapPublication = null; }
     return;
   }
   if (e.pointerType === 'mouse' && state.mode === 'room' && state.pointerId === null) {
     const m = mosquitoAtPointer(e.clientX, e.clientY, 'mouse');
-    const b = !m && bookAtPointer(e.clientX, e.clientY);
-    const p = !m && !b && penAtPointer(e.clientX, e.clientY);
+    const f = !m && feedAtPointer(e.clientX, e.clientY);
+    const b = !m && !f && bookAtPointer(e.clientX, e.clientY);
+    const publication = !m && !f && !b ? publicationAtPointer(e.clientX, e.clientY) : null;
+    const p = !m && !f && !b && publication === null && penAtPointer(e.clientX, e.clientY);
+    state.feedHovered = f;
     state.bookHovered = b;
+    state.publicationHovered = publication;
     canvas.classList.toggle('can-catch', !!m);
     canvas.classList.toggle('can-grab-pen', p);
-    canvas.classList.toggle('can-open-book', b);
+    canvas.classList.toggle('can-open-book', b || publication !== null);
+    canvas.classList.toggle('can-use-object', f);
   }
 }
 function onCanvasPointerUp(e) {
   if (e.pointerId !== state.pointerId) return;
   const moved = Math.hypot(e.clientX - state.pointerStartX, e.clientY - state.pointerStartY);
   const tappedMosquito = moved < 18 ? state.tapMosquito : null;
+  const shouldFeed = state.tapFeed && moved < 16;
   const shouldOpenBook = state.tapBook && moved < 16;
+  const publicationIndex = moved < 16 ? state.tapPublication : null;
   clearActivePointer();
   if (tappedMosquito) catchMosquito(tappedMosquito);
+  else if (shouldFeed) feedInput();
   else if (shouldOpenBook) openDiary();
+  else if (publicationIndex !== null) openPublication(publicationIndex);
 }
 function onCanvasPointerCancel(e) {
   if (e.pointerId !== state.pointerId) return;
@@ -6673,7 +7004,10 @@ canvas.addEventListener('pointercancel', onCanvasPointerCancel);
 canvas.addEventListener('lostpointercapture', (e) => { if (e.pointerId === state.pointerId) onCanvasPointerCancel(e); });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('pointerleave', () => {
-  if (!state.penDragging) { state.bookHovered = false; canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book'); }
+  if (!state.penDragging) {
+    state.feedHovered = false; state.bookHovered = false; state.publicationHovered = null;
+    canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book', 'can-use-object');
+  }
 });
 
 /* 키보드: 스페이스로 한 바퀴 휘젓기 */
@@ -6704,12 +7038,14 @@ function updateKeyboardStir(dt) {
 }
 canvas.addEventListener('keydown', (e) => {
   if (state.mode !== 'room' || state.pointerId !== null || pen.held) return;
-  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); startKeyboardStir(); }
+  if (e.key.toLowerCase() === 'i') { e.preventDefault(); feedInput(); }
+  else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); startKeyboardStir(); }
   else if (e.key.toLowerCase() === 'm') {
     e.preventDefault();
     const nearest = activeMosquitoes().sort((a, b) => a.position.distanceToSquared(camera.position) - b.position.distanceToSquared(camera.position))[0];
     if (nearest) catchMosquito(nearest);
   } else if (e.key.toLowerCase() === 'd') { e.preventDefault(); openDiary(); }
+  else if (['1', '2', '3'].includes(e.key)) { e.preventDefault(); openPublication(Number(e.key) - 1); }
 });
 
 /* ───────────────────────── 표본 그림 ───────────────────────── */
@@ -6808,6 +7144,10 @@ function pageForNewEntry(capturedAt) {
   if (last && last.entries.length < PER_PAGE) return last.entries;
   return [];
 }
+function pageIndexForNewEntry(capturedAt) {
+  const marker = { capturedAt };
+  return Math.max(0, buildPages([...entries, marker]).findIndex((page) => page.entries.includes(marker)));
+}
 function specimenElement(entry) {
   const el = document.createElement('div');
   el.className = 'saved-specimen';
@@ -6822,11 +7162,16 @@ function specimenElement(entry) {
   el.append(wet, img, tape, time);
   return el;
 }
-function renderPage(el, page) {
+function renderPage(el, page, pageIndex) {
   el.replaceChildren();
+  const title = document.createElement('p');
+  title.className = `page-theme${pageIndex % 2 ? ' is-right' : ''}`;
+  title.textContent = DIARY_PAGE_TITLES[pageIndex % DIARY_PAGE_TITLES.length];
+  el.append(title);
   if (!page) return;
   const date = document.createElement('time');
-  date.className = 'page-date'; date.dateTime = new Date(page.date).toISOString(); date.textContent = formatDate(page.date);
+  date.className = `page-date${pageIndex % 2 ? '' : ' is-right'}`;
+  date.dateTime = new Date(page.date).toISOString(); date.textContent = formatDate(page.date);
   el.append(date);
   for (const e of page.entries) el.append(specimenElement(e));
 }
@@ -6834,7 +7179,7 @@ function isNarrow() { return window.matchMedia('(max-width: 680px)').matches; }
 function renderDiary() {
   const pages = buildPages(entries);
   if (!pages.length) {
-    leftPage.replaceChildren(); rightPage.replaceChildren();
+    renderPage(leftPage, null, 0); renderPage(rightPage, null, 1);
     const note = document.createElement('p'); note.className = 'empty-page-note'; note.textContent = '아직 아무것도 붙이지 않았습니다';
     leftPage.append(note);
     pageIndicator.textContent = isNarrow() ? '1 / 1' : '1–2 / 2';
@@ -6844,14 +7189,14 @@ function renderDiary() {
   const last = pages.length - 1;
   if (isNarrow()) {
     state.diaryIndex = clamp(state.diaryIndex, 0, last);
-    renderPage(leftPage, pages[state.diaryIndex]); rightPage.replaceChildren();
+    renderPage(leftPage, pages[state.diaryIndex], state.diaryIndex); rightPage.replaceChildren();
     pageIndicator.textContent = `${state.diaryIndex + 1} / ${pages.length}`;
     prevButton.disabled = state.diaryIndex <= 0; nextButton.disabled = state.diaryIndex >= last;
   } else {
     const lastSpread = Math.floor(last / 2) * 2;
     const left = clamp(Math.floor(state.diaryIndex / 2) * 2, 0, lastSpread);
     state.diaryIndex = left;
-    renderPage(leftPage, pages[left]); renderPage(rightPage, pages[left + 1]);
+    renderPage(leftPage, pages[left], left); renderPage(rightPage, pages[left + 1], left + 1);
     const total = pages.length + (pages.length % 2);
     pageIndicator.textContent = `${left + 1}–${left + 2} / ${total}`;
     prevButton.disabled = left <= 0; nextButton.disabled = left >= lastSpread;
@@ -6881,7 +7226,8 @@ function catchMosquito(m) {
   state.mode = 'capture';
   setSceneInert(true);
   stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
-  canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book');
+  state.feedHovered = false; state.bookHovered = false; state.publicationHovered = null;
+  canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book', 'can-use-object');
   setTimeout(() => {
     if (state.mode !== 'capture') return;
     state.mode = 'mount-transition';
@@ -6902,6 +7248,10 @@ function openMountPage(seed) {
   const img = new Image(); img.alt = '잡은 모기'; img.src = specimenImage(seed);
   pendingEl.append(img);
   pendingEl.style.left = '50%'; pendingEl.style.top = '47%'; pendingEl.style.opacity = '.56';
+  const pageIndex = pageIndexForNewEntry(capturedAt);
+  mountPageTheme.textContent = DIARY_PAGE_TITLES[pageIndex % DIARY_PAGE_TITLES.length];
+  mountPageTheme.classList.toggle('is-right', pageIndex % 2 === 1);
+  mountDate.classList.toggle('is-right', pageIndex % 2 === 0);
   mountDate.textContent = formatDate(capturedAt); mountDate.dateTime = new Date(capturedAt).toISOString();
   mountExisting.replaceChildren(...pageForNewEntry(capturedAt).map(specimenElement));
   mountHint.textContent = '놓을 곳을 누르세요';
@@ -7055,9 +7405,65 @@ tapeRoll.addEventListener('keydown', (e) => {
 });
 cancelMountButton.addEventListener('click', cancelMounting);
 
+/* ───────────────────────── 출판물 열고 닫기 ───────────────────────── */
+const PUBLICATION_SPOTS = [
+  [.15, .21], [.37, .2], [.61, .23], [.84, .2],
+  [.2, .47], [.43, .45], [.67, .48], [.86, .5],
+  [.14, .75], [.37, .76], [.62, .73], [.83, .78],
+];
+function publicationSpecimenElement(def, index, specimenIndex) {
+  const rnd = seededRandom(def.seed + specimenIndex * 97);
+  const spot = PUBLICATION_SPOTS[specimenIndex];
+  const angleRange = def.tape === 'grid' ? 3 : def.tape === 'dash' ? 17 : 8;
+  const entry = {
+    seed: def.seed + specimenIndex,
+    capturedAt: Date.UTC(2026, index, specimenIndex + 1, 12, specimenIndex * 3),
+    x: clamp(spot[0] + (rnd() - .5) * .045, .1, .9),
+    y: clamp(spot[1] + (rnd() - .5) * .045, .14, .84),
+    rotation: (rnd() - .5) * 26,
+    scale: .78 + rnd() * .22,
+    tapeAngle: (rnd() - .5) * angleRange * 2,
+  };
+  const el = specimenElement(entry);
+  el.classList.add('publication-specimen');
+  el.querySelector('.tape-strip')?.classList.add(`publication-tape--${def.tape}`);
+  el.querySelector('.specimen-time')?.remove();
+  return el;
+}
+function renderPublication(index) {
+  const def = PUBLICATIONS[index];
+  publicationPage.replaceChildren();
+  const folio = document.createElement('p'); folio.className = 'publication-folio'; folio.textContent = def.folio;
+  publicationPage.append(folio);
+  for (let i = 0; i < PUBLICATION_SPOTS.length; i += 1) publicationPage.append(publicationSpecimenElement(def, index, i));
+  publicationOverlay.setAttribute('aria-label', `출판물 ${def.folio}`);
+  publicationPage.setAttribute('aria-label', `모기 표본이 붙은 출판물 ${def.folio}`);
+}
+function openPublication(index) {
+  if (state.mode !== 'room' || pen.held || state.pointerId !== null || feed.pouring || !PUBLICATIONS[index]) return;
+  state.publicationIndex = index; state.mode = 'publication'; setSceneInert(true);
+  state.publicationHovered = null;
+  canvas.classList.remove('can-catch', 'can-grab-pen', 'can-open-book', 'can-use-object');
+  stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
+  renderPublication(index); sound.book();
+  publicationOverlay.classList.add('is-open'); publicationOverlay.setAttribute('aria-hidden', 'false');
+  publicationOverlay.focus({ preventScroll: true });
+}
+function closePublication() {
+  if (state.mode !== 'publication') return;
+  publicationOverlay.classList.remove('is-open'); publicationOverlay.setAttribute('aria-hidden', 'true');
+  state.mode = 'room'; setSceneInert(false); updateBuzz(); sound.book();
+  canvas.focus({ preventScroll: true });
+}
+publicationButtons.forEach((button) => button.addEventListener('click', () => {
+  sound.ensure(); openPublication(Number(button.dataset.publication));
+}));
+closePublicationButton.addEventListener('click', closePublication);
+publicationOverlay.addEventListener('pointerdown', (e) => { if (e.target === publicationOverlay) closePublication(); });
+
 /* ───────────────────────── 다이어리 열고 닫기 ───────────────────────── */
 function openDiary() {
-  if (state.mode !== 'room' || pen.held || state.pointerId !== null) return;
+  if (state.mode !== 'room' || pen.held || state.pointerId !== null || feed.pouring) return;
   state.mode = 'diary-transition'; setSceneInert(true);
   state.hasOpenedDiary = true;
   stir.waterLevel = 0; sound.setWater(0); sound.setPopulation(0);
@@ -7093,6 +7499,7 @@ soundButton.addEventListener('click', () => sound.setMuted(!settings.muted));
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && ['mounting', 'taping', 'mount-finished'].includes(state.mode)) cancelMounting();
   else if (e.key === 'Escape' && state.mode === 'diary') closeDiary();
+  else if (e.key === 'Escape' && state.mode === 'publication') closePublication();
   else if (state.mode === 'diary' && e.key === 'ArrowLeft') turnPage(-1);
   else if (state.mode === 'diary' && e.key === 'ArrowRight') turnPage(1);
 });
@@ -7105,11 +7512,13 @@ window.addEventListener('pagehide', saveEntries);
 /* ───────────────────────── 메인 루프 ───────────────────────── */
 let lastFrame = performance.now();
 let elapsed = 0;
-function sceneCovered() { return ['mounting', 'taping', 'mount-finished', 'diary'].includes(state.mode); }
+function sceneCovered() { return ['mounting', 'taping', 'mount-finished', 'diary', 'publication'].includes(state.mode); }
 function frame() {
   const now = performance.now();
   const dt = Math.min((now - lastFrame) / 1000, 0.05);
   lastFrame = now; elapsed += dt;
+
+  updateFeed(dt, now);
 
   if (sceneCovered()) {
     stir.idleTime = 0; stir.idleStartedAt = 0;
@@ -7140,6 +7549,11 @@ function frame() {
   const lift = Math.max(state.bookHovered ? 1 : 0, pulse, firstOpenCue);
   diaryCover.position.y = damp(diaryCover.position.y, 0.118 + lift * 0.09, 10, dt);
   diaryCover.rotation.z = damp(diaryCover.rotation.z, lift * 0.14, 10, dt);
+  publicationBooks.forEach((book, index) => {
+    const hovered = state.publicationHovered === index ? 1 : 0;
+    book.position.z = damp(book.position.z, .38 + hovered * .1, 12, dt);
+    book.rotation.z = damp(book.rotation.z, hovered * (index === 1 ? -.025 : .025), 12, dt);
+  });
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
@@ -7154,3 +7568,4 @@ frame();
 </script>
   </body>
 </html>
+
